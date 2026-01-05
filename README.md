@@ -41,7 +41,7 @@ The app uses a custom color palette defined in `app/globals.css`:
     Create a `.env` file in the root directory:
     ```env
     DATABASE_URL="mysql://root:@localhost:3306/web-info-magang"
-    NEXTAUTH_SECRET="your_random_secret_string_here"
+    NEXTAUTH_SECRET="rahasia_negara_dinas_kominfo_2026_super_secure"
     NEXTAUTH_URL="http://localhost:3000"
     ```
 
