@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal Magang (Internship Portal)
 
-## Getting Started
+A full-stack web application for managing internship applications at Dinas Kominfo. Built as a Monolith using Next.js 14.
 
-First, run the development server:
+## 🚀 Tech Stack
+- **Framework:** Next.js 14 (App Router)
+- **Database:** MySQL
+- **ORM:** Prisma
+- **Auth:** NextAuth.js (Role-Based: User vs Admin)
+- **Styling:** Tailwind CSS v4 (Custom "Government Teal" Theme)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🛠️ Features
+### 1. Public Facing
+- **Landing Page:** Professional homepage with sticky navbar and call-to-action sections.
+- **Authentication:** Secure Login/Register forms with role redirection.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. User (Applicant)
+- **Dashboard:** View application status (Pending/Accepted/Rejected).
+- **Profile:** Manage personal details and upload CV (PDF).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Admin (Staff)
+- **Admin Panel:** Table view of all applicants.
+- **Actions:** One-click "Accept" or "Reject" buttons.
+- **Review:** Download and view applicant CVs.
+- **Security:** Custom Logout Modal with confirmation to prevent accidental sign-outs.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🎨 Design System
+The app uses a custom color palette defined in `app/globals.css`:
+- **Primary (Teal):** `#1193b5` (Buttons, Navbar)
+- **Secondary (Light Blue):** `#95ddeb` (Backgrounds)
+- **Accent (Gold):** `#c3924d` (Highlights)
 
-## Learn More
+## ⚙️ Installation & Setup
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2.  **Setup Environment**
+    Create a `.env` file in the root directory:
+    ```env
+    DATABASE_URL="mysql://root:@localhost:3306/web-info-magang"
+    NEXTAUTH_SECRET="your_random_secret_string_here"
+    NEXTAUTH_URL="http://localhost:3000"
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3.  **Setup Database**
+    Ensure MySQL is running (e.g., via Laragon/XAMPP), then sync the schema:
+    ```bash
+    npx prisma db push
+    ```
 
-## Deploy on Vercel
+4.  **Run the App**
+    ```bash
+    npm run dev
+    ```
+    Access at `http://localhost:3000`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 👤 Default Accounts
+* **User:** Register manually via `/register`.
+* **Admin:** Register a normal user, then manually change their `role` to `'ADMIN'` in your database (via HeidiSQL/PhpMyAdmin).

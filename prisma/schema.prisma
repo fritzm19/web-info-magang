@@ -18,4 +18,20 @@ model User {
   name      String?
   role      String   @default("USER") // "ADMIN" or "USER"
   createdAt DateTime @default(now())
+  application Application?
+}
+
+model Application {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique // One application per user for now
+  user      User     @relation(fields: [userId], references: [id])
+  
+  fullName  String
+  campus    String   // University/School name
+  major     String   // Jurusan
+  semester  String
+  cvUrl     String?  // We will store the path to the file here (e.g., "/uploads/cv-fritz.pdf")
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  
+  createdAt DateTime @default(now())
 }

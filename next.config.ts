@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // We keep this empty to satisfy TypeScript.
+  // This ensures no conflicting "middleware" settings exist.
 };
 
 export default nextConfig;
