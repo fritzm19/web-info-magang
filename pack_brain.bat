@@ -1,52 +1,34 @@
 @echo off
 setlocal
 
-:: --- CONFIGURATION ---
+:: 1. Get the current folder name
 for %%I in (.) do set "FolderName=%%~nxI"
-set "ZipFileName=%FolderName%_Brain_Lite.zip"
-set "TreeFile=_PROJECT_STRUCTURE.txt"
+
+:: 2. Set the output filename
+set "ZipFileName=%FolderName%_Brain_Migration.zip"
 
 echo ========================================================
-echo  Creating Surgical Context Pack for: %FolderName%
+echo  Packing "Brain" for: %FolderName%
+echo  Target File: %ZipFileName%
 echo ========================================================
+echo.
 
-:: 1. Generate a Clean Directory Tree (Excluding heavy folders)
-echo [1/3] Generating project structure map...
-powershell -Command "Get-ChildItem -Recurse -Exclude 'node_modules','.next','.git','.vscode','dist','build' | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Substring((Get-Location).Path.Length + 1) } > %TreeFile%"
+:: 3. Remove old zip if it exists to avoid errors
+if exist "%ZipFileName%" del "%ZipFileName%"
 
-:: 2. Create the Zip with Specific Files + The Tree
-echo [2/3] Compressing 10 Critical Files...
+:: 4. Run PowerShell to zip the folder contents
+::    Excludes: node_modules, .next, .git, .vscode, and the zip file itself.
+echo Compressing files (this might take a moment)...
 
-:: This PowerShell command zips the Tree File AND the specific list of critical files
-powershell -Command "& { ^
-    $files = @( ^
-        '%TreeFile%', ^
-        'PROJECT_CONTEXT.md', ^
-        'README.md', ^
-        'package.json', ^
-        'middleware.ts', ^
-        'prisma\schema.prisma', ^
-        'app\globals.css', ^
-        'app\api\auth\[...nextauth]\route.ts', ^
-        'components\LogoutButton.tsx', ^
-        'app\page.tsx', ^
-        'app\admin\page.tsx' ^
-    ); ^
-    $validFiles = $files | Where-Object { Test-Path $_ }; ^
-    if ($validFiles.Count -eq 0) { Write-Error 'No files found to zip!'; exit 1 } ^
-    Compress-Archive -Path $validFiles -DestinationPath '%ZipFileName%' -Force ^
-}"
-
-:: 3. Cleanup
-echo [3/3] Cleaning up temp files...
-if exist "%TreeFile%" del "%TreeFile%"
+powershell -Command "Get-ChildItem -Path . -Exclude 'node_modules','.next','.git','.vscode','%ZipFileName%','*.log' | Compress-Archive -DestinationPath '%ZipFileName%'"
 
 echo.
+echo ========================================================
 if exist "%ZipFileName%" (
     echo  SUCCESS! 🧠
-    echo  Lite Archive Created: %ZipFileName%
+    echo  File created: %ZipFileName%
 ) else (
-    echo  ERROR: Zip creation failed. Check if files exist.
+    echo  ERROR: Failed to create zip file.
 )
 echo ========================================================
 pause
