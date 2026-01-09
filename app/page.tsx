@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import Image from "next/image";
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
@@ -9,44 +11,7 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* 1. Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <Link href="/">
-            <Image
-                src="/sulut-dark.png"
-                alt="Portal Magang Logo"
-                width={250}
-                height={50}
-            />
-          </Link>
-          
-          <div className="flex gap-4">
-            {session ? (
-              <Link 
-                href="/dashboard"
-                className="bg-blue-600 text-white px-5 py-2 rounded-full font-medium hover:bg-blue-700 transition"
-              >
-                Go to Dashboard →
-              </Link>
-            ) : (
-              <>
-                <Link 
-                  href="/login"
-                  className="text-gray-600 hover:text-blue-600 font-medium px-4 py-2"
-                >
-                  Masuk
-                </Link>
-                <Link 
-                  href="/register"
-                  className="bg-blue-600 text-white px-5 py-2 rounded-full font-medium hover:bg-blue-700 transition"
-                >
-                  Daftar
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* 2. Hero Section */}
       <main className="grow flex items-center justify-center bg-linear-to-b from-white to-blue-50">
@@ -90,7 +55,7 @@ export default async function LandingPage() {
       </main>
 
       {/* 3. Features Grid */}
-      <section id="features" className="py-20 bg-white">
+      <section id="features" className="py-20 bg-white scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <div className="p-6 rounded-2xl border border-gray-100 bg-gray-50">
@@ -113,11 +78,12 @@ export default async function LandingPage() {
       </section>
 
       {/* 4. Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8 border-t border-gray-800">
+      {/* <footer className="bg-gray-900 text-gray-400 py-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p>&copy; 2026 Dinas Kominfo. Internship Portal Project.</p>
         </div>
-      </footer>
+      </footer> */}
+      <Footer />
     </div>
   );
 }

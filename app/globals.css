@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @theme {
   /* 1. DEFINE YOUR CUSTOM PALETTE 
      These names (primary, secondary) become available as 
@@ -29,3 +33,5 @@
   --color-blue-800: #0f6178;
   --color-blue-900: #115163;
 }
+
+

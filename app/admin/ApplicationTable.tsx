@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ViewCVButton from "@/components/ViewCVButton"; // <--- 1. Import Component ini
 
 // Define the shape of our data
 type Application = {
@@ -20,14 +21,14 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
   const [isLoading, setIsLoading] = useState<number | null>(null);
 
   const updateStatus = async (id: number, status: string) => {
-    setIsLoading(id); // Show loading state on the specific row
+    setIsLoading(id);
     try {
       await fetch("/api/application/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ applicationId: id, newStatus: status }),
       });
-      router.refresh(); // Reload the page data to show new status
+      router.refresh();
     } catch (error) {
       alert("Failed to update status");
     } finally { 
@@ -51,7 +52,7 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
           {initialData.length === 0 ? (
             <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No applications yet.</td></tr>
           ) : (
-            initialData.map((app) => (
+            initialData.map((app) => (  // <--- Variabelnya bernama 'app'
               <tr key={app.id} className="hover:bg-gray-50 transition">
                 <td className="px-6 py-4">
                   <div className="font-medium text-gray-900">{app.fullName}</div>
@@ -61,15 +62,22 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                   {app.campus}<br />
                   <span className="text-xs">{app.major} • Sem {app.semester}</span>
                 </td>
+                
+                {/* --- BAGIAN INI YANG DIPERBAIKI --- */}
                 <td className="px-6 py-4">
                   {app.cvUrl ? (
-                    <a href={app.cvUrl} target="_blank" className="text-blue-600 hover:underline text-sm">
-                      📄 Download CV
-                    </a>
+                    // Ganti <a> lama dengan Component ViewCVButton
+                    // Pastikan pakai 'app.cvUrl' dan 'app.fullName'
+                    <ViewCVButton 
+                        cvUrl={app.cvUrl} 
+                        fileName={`CV_${app.fullName}.pdf`} 
+                    />
                   ) : (
                     <span className="text-gray-400 text-sm italic">No CV Uploaded</span>
                   )}
                 </td>
+                {/* ---------------------------------- */}
+
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-xs font-bold rounded-full ${
                     app.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' : 
