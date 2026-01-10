@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ViewCVButton from "@/components/ViewCVButton"; // <--- 1. Import Component ini
+import { Printer, Loader2 } from "lucide-react";
+import LetterPreviewButton from "@/components/admin/LetterPreviewButton";
 
 // Define the shape of our data
 type Application = {
@@ -105,6 +107,14 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                         Reject
                       </button>
                     </>
+                  )}
+
+                  {/* TAMPILKAN TOMBOL PRINT HANYA JIKA STATUS ACCEPTED */}
+                  {app.status === "ACCEPTED" && (
+                    <LetterPreviewButton 
+                      applicationId={app.id} 
+                      applicantName={app.fullName} 
+                    />
                   )}
                 </td>
               </tr>
