@@ -116,10 +116,10 @@ export default function ApplicationForm({ user }: ApplicationFormProps) {
 
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-3xl mx-auto">
-      <div className="text-center mb-8">
+      {/* <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-gray-900">Lengkapi Berkas Magang</h2>
         <p className="text-gray-500">Isi formulir berikut untuk mengajukan permohonan magang.</p>
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
@@ -185,7 +185,7 @@ export default function ApplicationForm({ user }: ApplicationFormProps) {
                         <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "cv")} className="hidden" id="cv-upload" />
                         <label htmlFor="cv-upload" className="cursor-pointer flex flex-col items-center gap-2">
                             <FileText className={cvFile ? "text-blue-500" : "text-gray-400"} size={24} />
-                            <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                            <span className="text-xs text-gray-500 truncate max-w-37.5">
                                 {cvFile ? cvFile.name : "Klik untuk upload CV"}
                             </span>
                         </label>
@@ -199,7 +199,7 @@ export default function ApplicationForm({ user }: ApplicationFormProps) {
                         <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, "proposal")} className="hidden" id="proposal-upload" />
                         <label htmlFor="proposal-upload" className="cursor-pointer flex flex-col items-center gap-2">
                             <School className={proposalFile ? "text-blue-500" : "text-gray-400"} size={24} />
-                            <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                            <span className="text-xs text-gray-500 truncate max-w-37.5">
                                 {proposalFile ? proposalFile.name : "Klik untuk upload Surat"}
                             </span>
                         </label>

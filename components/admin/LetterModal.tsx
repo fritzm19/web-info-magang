@@ -1,12 +1,10 @@
-// components/admin/LetterModal.tsx
 "use client";
 
 import { useState } from "react";
-import { Printer, FileBadge, X } from "lucide-react";
+import { Download, FileBadge, X, Loader2 } from "lucide-react"; // Ganti Printer dengan Download
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
-// 1. Definisikan tipe data Application agar tidak menggunakan 'any'
 interface Application {
   id: number;
   fullName: string;
@@ -16,10 +14,8 @@ interface Application {
   endDate: Date | string | null;
 }
 
-// 2. Perbaiki tipe parameter helper function
-// Menerima Date, string, number (timestamp), atau null/undefined
 const formatDateSafe = (date: Date | string | number | null | undefined) => {
-  if (!date) return "...................."; // Placeholder titik-titik jika tanggal kosong
+  if (!date) return "....................";
   try {
     return format(new Date(date), "d MMMM yyyy", { locale: idLocale });
   } catch (error) {
@@ -27,33 +23,45 @@ const formatDateSafe = (date: Date | string | number | null | undefined) => {
   }
 };
 
-// 3. Gunakan Interface Application pada props
 export default function LetterModal({ application }: { application: Application }) {
   const [open, setOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // State untuk loading download
 
-  const handlePrint = () => {
-    const printContent = document.getElementById("letter-content");
-    const windowName = "SuratPenerimaan";
-    const printWindow = window.open("", windowName, "height=800,width=800");
+  // --- PERBAIKAN: Fungsi Download DOCX ---
+  const handleDownloadDocx = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch("/api/admin/letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: application.id }),
+      });
 
-    if (printWindow && printContent) {
-      printWindow.document.write('<html><head><title>Surat Penerimaan</title>');
-      // Menggunakan CDN Tailwind untuk styling saat print
-      printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>'); 
-      printWindow.document.write('</head><body class="p-8">');
-      printWindow.document.write(printContent.innerHTML);
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
+      if (!response.ok) throw new Error("Gagal mengunduh file");
+
+      // Mengambil blob dari response
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       
-      // Tunggu sebentar agar tailwind load sebelum print
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      // Membuat link temporary untuk download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Surat_Balasan_${application.fullName.replace(/\s+/g, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Gagal mengunduh surat balasan.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
   const today = format(new Date(), "d MMMM yyyy", { locale: idLocale });
-  
   const startDateStr = formatDateSafe(application.startDate); 
   const endDateStr = formatDateSafe(application.endDate);
 
@@ -74,8 +82,18 @@ export default function LetterModal({ application }: { application: Application 
                 <div className="flex justify-between items-center p-4 border-b border-gray-100">
                     <h3 className="font-bold text-gray-800">Preview Surat Balasan</h3>
                     <div className="flex gap-2">
-                        <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-900 transition">
-                            <Printer size={16} /> Cetak PDF
+                        {/* TOMBOL DOWNLOAD DOCX */}
+                        <button 
+                          onClick={handleDownloadDocx} 
+                          disabled={isDownloading}
+                          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:bg-blue-400"
+                        >
+                            {isDownloading ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Download size={16} />
+                            )}
+                            Unduh DOCX
                         </button>
                         <button onClick={() => setOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
                             <X size={20} />
@@ -85,15 +103,12 @@ export default function LetterModal({ application }: { application: Application 
 
                 {/* Modal Body (Scrollable) */}
                 <div className="flex-1 overflow-y-auto bg-gray-100 p-8 flex justify-center">
-                    
-                    {/* KERTAS A4 VISUALIZATION */}
                     <div 
                         id="letter-content"
                         className="bg-white shadow-lg p-[2.5cm] w-[21cm] min-h-[29.7cm] text-black leading-relaxed text-[12pt] font-serif relative"
                     >
                         {/* KOP SURAT */}
                         <div className="flex items-center justify-center border-b-4 border-double border-black pb-4 mb-6 gap-4">
-                            {/* Pastikan file logo ada di public/logo-dinas.png atau ganti src ini */}
                             <img src="/sulut-icon.png" alt="Logo" className="h-20 w-auto object-contain" />
                             <div className="text-center">
                                 <h2 className="text-lg font-bold uppercase">Pemerintah Provinsi Sulawesi Utara</h2>
@@ -102,7 +117,7 @@ export default function LetterModal({ application }: { application: Application 
                             </div>
                         </div>
 
-                        {/* ISI SURAT */}
+                        {/* ISI SURAT (Hanya untuk preview visual) */}
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <p>Nomor: 800 / Diskominfo / {application.id} / 2026</p>
@@ -144,19 +159,16 @@ export default function LetterModal({ application }: { application: Application 
                             Demikian surat balasan ini kami sampaikan, atas perhatian dan kerjasamanya diucapkan terima kasih.
                         </p>
 
-                        {/* TANDA TANGAN */}
                         <div className="flex justify-end mt-16">
                             <div className="text-center w-64">
                                 <p>Kepala Dinas,</p>
-                                <div className="h-24"></div> {/* Space Tanda Tangan */}
+                                <div className="h-24"></div> 
                                 <p className="font-bold underline decoration-1 underline-offset-4">Dr. NAMA KEPALA DINAS, M.Si</p>
                                 <p>NIP. 19700101 200003 1 001</p>
                             </div>
                         </div>
-
                     </div>
                 </div>
-
             </div>
         </div>
       )}

@@ -20,22 +20,28 @@ export default async function DashboardLayout({
     where: { userId: Number(session.user.id) },
   });
 
-  const showSidebar = !!application; 
+  // Cek apakah user sudah punya aplikasi
+  const hasApplied = !!application; 
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar Kiri */}
-      {showSidebar && <Sidebar session={session} />}
+      
+      {/* Sidebar Kiri (Hanya muncul jika sudah apply) */}
+      {hasApplied && <Sidebar session={session} />}
 
-      {/* Konten Kanan */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {showSidebar && <DashboardNavbar />}
+      {/* Area Kanan */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
+        
+        {/* UPDATE: Kirim props hasApplied ke Navbar */}
+        <DashboardNavbar hasApplied={hasApplied} />
 
-        <main className={`flex-1 p-6 md:p-8 ${!showSidebar ? 'flex justify-center' : ''}`}>
-           <div className={`w-full ${!showSidebar ? 'max-w-4xl mt-6' : ''}`}>
+        {/* Main Content */}
+        <main className={`flex-1 overflow-y-auto p-6 md:p-8 ${!hasApplied ? 'flex justify-center bg-gray-50' : ''}`}>
+           <div className={`w-full ${!hasApplied ? 'max-w-4xl mt-6' : ''}`}>
               {children}
            </div>
         </main>
+        
       </div>
     </div>
   );
