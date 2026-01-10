@@ -2,36 +2,47 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"; // Asumsi pakai Shadcn/Radix, atau pakai modal HTML biasa
 import { Printer, FileBadge, X } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
+// Helper aman untuk format tanggal
+const formatDateSafe = (date: any) => {
+  if (!date) return "...................."; // Placeholder titik-titik jika tanggal kosong
+  try {
+    return format(new Date(date), "d MMMM yyyy", { locale: idLocale });
+  } catch (error) {
+    return "Invalid Date";
+  }
+};
+
 export default function LetterModal({ application }: { application: any }) {
   const [open, setOpen] = useState(false);
 
-  // Fungsi Print Khusus Div
   const handlePrint = () => {
     const printContent = document.getElementById("letter-content");
-    const windowUrl = window.location.href;
     const windowName = "SuratPenerimaan";
-    // Trik simple: Gunakan CSS @media print di global css, atau buka window baru
-    // Cara window baru lebih aman untuk formatting:
     const printWindow = window.open("", windowName, "height=800,width=800");
-    if(printWindow && printContent) {
-        printWindow.document.write('<html><head><title>Surat Penerimaan</title>');
-        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>'); // Load Tailwind agar style terbawa
-        printWindow.document.write('</head><body class="p-8">');
-        printWindow.document.write(printContent.innerHTML);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
+
+    if (printWindow && printContent) {
+      printWindow.document.write('<html><head><title>Surat Penerimaan</title>');
+      printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>'); 
+      printWindow.document.write('</head><body class="p-8">');
+      printWindow.document.write(printContent.innerHTML);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      // Tunggu sebentar agar tailwind load sebelum print (opsional, tapi membantu)
+      setTimeout(() => {
         printWindow.print();
+      }, 500);
     }
   };
 
   const today = format(new Date(), "d MMMM yyyy", { locale: idLocale });
-  const startDate = format(new Date(application.startPeriod), "d MMMM yyyy", { locale: idLocale });
-  const endDate = format(new Date(application.endPeriod), "d MMMM yyyy", { locale: idLocale });
+  
+  // PERBAIKAN DI SINI: Menggunakan startDate/endDate dan fungsi safe
+  const startDateStr = formatDateSafe(application.startDate); 
+  const endDateStr = formatDateSafe(application.endDate);
 
   return (
     <>
@@ -69,7 +80,7 @@ export default function LetterModal({ application }: { application: any }) {
                     >
                         {/* KOP SURAT */}
                         <div className="flex items-center justify-center border-b-4 border-double border-black pb-4 mb-6 gap-4">
-                             {/* Ganti src logo dengan logo dinas daerahmu */}
+                            {/* Pastikan file logo ada di public/logo-dinas.png atau ganti src ini */}
                             <img src="/logo-dinas.png" alt="Logo" className="h-20 w-auto object-contain" />
                             <div className="text-center">
                                 <h2 className="text-lg font-bold uppercase">Pemerintah Provinsi Sulawesi Utara</h2>
@@ -104,10 +115,6 @@ export default function LetterModal({ application }: { application: any }) {
                                     <td>: {application.fullName}</td>
                                 </tr>
                                 <tr>
-                                    <td className="font-bold py-1">NIM / NIK</td>
-                                    <td>: (Sesuaikan Data)</td>
-                                </tr>
-                                <tr>
                                     <td className="font-bold py-1">Program Studi</td>
                                     <td>: {application.major}</td>
                                 </tr>
@@ -117,7 +124,7 @@ export default function LetterModal({ application }: { application: any }) {
                         <p className="mb-4 text-justify indent-8">
                             Dengan ini kami sampaikan bahwa Dinas Komunikasi, Informatika, Persandian dan Statistik Daerah Provinsi Sulawesi Utara 
                             <span className="font-bold"> DAPAT MENERIMA</span> mahasiswa tersebut untuk melaksanakan kegiatan Magang terhitung mulai tanggal 
-                            <span className="font-bold"> {startDate} s.d {endDate}</span>.
+                            <span className="font-bold"> {startDateStr} s.d {endDateStr}</span>.
                         </p>
 
                         <p className="mb-8 text-justify indent-8">

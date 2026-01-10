@@ -1,21 +1,28 @@
 // app/admin/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation"; // Tambahkan redirect jika session null
 import { prisma } from "@/lib/prisma";
 import ApplicationTable from "./ApplicationTable";
-import DashboardHeader from "@/components/dashboard/Header"; // Kita reuse Header dashboard yg sudah bagus
+import DashboardHeader from "@/components/dashboard/Header";
 import { Users, Clock, CheckCircle, XCircle } from "lucide-react";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
 
-  // Fetch Data (Sort dari yang terbaru)
+  if (!session || session.user?.role !== "ADMIN") {
+    redirect("/login");
+  }
+
+  // Fetch Data Lengkap
   const applications = await prisma.application.findMany({
-    include: { user: { select: { email: true } } },
+    include: { 
+      user: { select: { email: true, name: true } } 
+    },
     orderBy: { createdAt: 'desc' }
   });
 
-  // Hitung Statistik Sederhana
+  // Statistik
   const stats = {
     total: applications.length,
     pending: applications.filter(a => a.status === 'PENDING').length,
@@ -26,72 +33,57 @@ export default async function AdminPage() {
   return (
     <>
       <DashboardHeader 
-        title="Dashboard Admin" 
-        subtitle="Overview pendaftaran magang dan manajemen status." 
+        title="Admin Control Panel" 
+        subtitle="Overview pendaftaran magang, validasi berkas, dan penerbitan surat." 
       />
 
-      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+      <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
         
-        {/* --- SECTION 1: STATISTIK CARDS --- */}
+        {/* --- STATISTIK CARDS --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card: Total Pendaftar */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div>
-                    <p className="text-gray-500 text-sm font-medium">Total Masuk</p>
-                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</h3>
-                </div>
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                    <Users size={24} />
-                </div>
-            </div>
-
-            {/* Card: Menunggu Review */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div>
-                    <p className="text-gray-500 text-sm font-medium">Perlu Review</p>
-                    <h3 className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</h3>
-                </div>
-                <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
-                    <Clock size={24} />
-                </div>
-            </div>
-
-            {/* Card: Diterima */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div>
-                    <p className="text-gray-500 text-sm font-medium">Diterima</p>
-                    <h3 className="text-2xl font-bold text-green-600 mt-1">{stats.accepted}</h3>
-                </div>
-                <div className="p-3 bg-green-50 text-green-600 rounded-lg">
-                    <CheckCircle size={24} />
-                </div>
-            </div>
-
-            {/* Card: Ditolak */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                <div>
-                    <p className="text-gray-500 text-sm font-medium">Ditolak</p>
-                    <h3 className="text-2xl font-bold text-red-600 mt-1">{stats.rejected}</h3>
-                </div>
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg">
-                    <XCircle size={24} />
-                </div>
-            </div>
+            <StatCard label="Total Masuk" value={stats.total} icon={Users} color="blue" />
+            <StatCard label="Perlu Review" value={stats.pending} icon={Clock} color="yellow" />
+            <StatCard label="Diterima" value={stats.accepted} icon={CheckCircle} color="green" />
+            <StatCard label="Ditolak" value={stats.rejected} icon={XCircle} color="red" />
         </div>
 
-        {/* --- SECTION 2: TABEL APLIKASI --- */}
-        <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Users size={20} className="text-[#1193b5]"/>
-                Daftar Pemohon Terbaru
-            </h3>
-            
-            {/* Tabel yang sudah Anda buat sebelumnya */}
+        {/* --- TABEL APLIKASI --- */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                    <h3 className="text-lg font-bold text-gray-800">Daftar Pemohon</h3>
+                    <p className="text-xs text-gray-500">Manage status penerimaan dan dokumen.</p>
+                </div>
+            </div>
             <ApplicationTable initialData={applications} />
         </div>
 
       </div>
     </>
   );
+}
+
+// Helper Component untuk Card Statistik agar code lebih bersih
+function StatCard({ label, value, icon: Icon, color }: any) {
+    const colors = {
+        blue: "bg-blue-50 text-blue-600",
+        yellow: "bg-yellow-50 text-yellow-600",
+        green: "bg-green-50 text-green-600",
+        red: "bg-red-50 text-red-600",
+    };
+    
+    // Type assertion untuk memastikan key valid atau fallback
+    const colorClass = colors[color as keyof typeof colors] || colors.blue;
+
+    return (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div>
+                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">{label}</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-2">{value}</h3>
+            </div>
+            <div className={`p-4 rounded-xl ${colorClass}`}>
+                <Icon size={24} />
+            </div>
+        </div>
+    );
 }

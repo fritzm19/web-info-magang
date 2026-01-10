@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth";
-// Pastikan path authOptions sesuai konfigurasi Anda
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import Sidebar from "@/components/dashboard/Sidebar";
-import LogoutButton from "@/components/LogoutButton"; // Untuk mobile view
 
 export default async function DashboardLayout({
   children,
@@ -16,25 +16,27 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const application = await prisma.application.findUnique({
+    where: { userId: Number(session.user.id) },
+  });
+
+  const showSidebar = !!application; 
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - Persistent */}
-      <Sidebar session={session} />
+      {/* Sidebar Kiri */}
+      {showSidebar && <Sidebar session={session} />}
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        {/* Mobile Header (Hanya muncul di HP) */}
-        <div className="md:hidden bg-[#1193b5] text-white p-4 flex justify-between items-center shadow-md shrink-0">
-          <h1 className="font-bold">Portal Magang</h1>
-          <LogoutButton />
-        </div>
+      {/* Konten Kanan */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {showSidebar && <DashboardNavbar />}
 
-        {/* Dynamic Children (Halaman yang berubah-ubah) */}
-        <div className="flex-1 overflow-y-auto">
-            {children}
-        </div>
-      </main>
+        <main className={`flex-1 p-6 md:p-8 ${!showSidebar ? 'flex justify-center' : ''}`}>
+           <div className={`w-full ${!showSidebar ? 'max-w-4xl mt-6' : ''}`}>
+              {children}
+           </div>
+        </main>
+      </div>
     </div>
   );
 }

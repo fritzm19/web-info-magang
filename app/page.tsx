@@ -18,6 +18,11 @@ import {
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
 
+  // LOGIC FIX: Tentukan tujuan redirect berdasarkan Role
+  // Jika Admin -> ke /admin, Jika User Biasa -> ke /dashboard
+  const dashboardLink = session?.user?.role === "ADMIN" ? "/admin" : "/dashboard";
+  const dashboardText = session?.user?.role === "ADMIN" ? "Panel Admin" : "Dashboard Saya";
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
@@ -54,10 +59,10 @@ export default async function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {session ? (
               <Link 
-                href="/dashboard"
+                href={dashboardLink} // <--- SUDAH DIPERBAIKI (Dinamis)
                 className="bg-[#1193b5] text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-[#0e7a96] transition shadow-lg hover:shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
               >
-                Dashboard Saya <ArrowRight size={20} />
+                {dashboardText} <ArrowRight size={20} />
               </Link>
             ) : (
               <Link 
@@ -68,7 +73,7 @@ export default async function LandingPage() {
               </Link>
             )}
             <a 
-                href="#features" // Link ke section features dulu
+                href="#features"
                 className="bg-white text-gray-700 border border-gray-200 px-8 py-4 rounded-xl text-lg font-bold hover:bg-gray-50 transition flex items-center justify-center"
             >
                 Learn More
@@ -77,7 +82,7 @@ export default async function LandingPage() {
         </div>
       </main>
 
-      {/* --- 2. FEATURES / WHY JOIN US (Dipindah ke Atas) --- */}
+      {/* --- 2. FEATURES --- */}
       <section id="features" className="py-24 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -112,7 +117,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* --- 3. REGISTRATION PROCESS (Dipindah ke Bawah) --- */}
+      {/* --- 3. REGISTRATION PROCESS --- */}
       <section id="process" className="py-24 bg-gray-50/50 border-y border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -122,80 +127,62 @@ export default async function LandingPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
-                {/* Garis Konektor (Desktop Only) */}
                 <div className="hidden md:block absolute top-12 left-0 w-full h-0.5 bg-gray-200 -z-10 transform translate-y-4"></div>
 
-                {/* Step 1 */}
                 <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center hover:-translate-y-2 transition duration-300">
                     <div className="w-16 h-16 bg-white text-[#1193b5] rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold border-2 border-blue-50 shadow-sm z-10 relative">
                         <UserPlus size={28} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">1. Buat Akun</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                        Registrasi akun baru menggunakan email aktif Anda.
-                    </p>
+                    <p className="text-gray-500 text-sm leading-relaxed">Registrasi akun baru menggunakan email aktif Anda.</p>
                 </div>
 
-                {/* Step 2 */}
                 <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center hover:-translate-y-2 transition duration-300">
                     <div className="w-16 h-16 bg-white text-[#1193b5] rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold border-2 border-blue-50 shadow-sm z-10 relative">
                         <FileText size={28} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">2. Isi Formulir</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                        Lengkapi biodata, informasi akademik, dan upload CV (PDF).
-                    </p>
+                    <p className="text-gray-500 text-sm leading-relaxed">Lengkapi biodata, informasi akademik, dan upload CV (PDF).</p>
                 </div>
 
-                {/* Step 3 */}
                 <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center hover:-translate-y-2 transition duration-300">
                     <div className="w-16 h-16 bg-white text-[#1193b5] rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold border-2 border-blue-50 shadow-sm z-10 relative">
                         <SearchCheck size={28} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">3. Verifikasi</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                        Tunggu proses review oleh admin. Pantau status di dashboard.
-                    </p>
+                    <p className="text-gray-500 text-sm leading-relaxed">Tunggu proses review oleh admin. Pantau status di dashboard.</p>
                 </div>
 
-                {/* Step 4 */}
                 <div className="relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center hover:-translate-y-2 transition duration-300">
                     <div className="w-16 h-16 bg-white text-[#1193b5] rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl font-bold border-2 border-blue-50 shadow-sm z-10 relative">
                         <Award size={28} />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">4. Accepted</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                        Unduh Surat Balasan resmi dan mulai perjalanan magang Anda!
-                    </p>
+                    <p className="text-gray-500 text-sm leading-relaxed">Unduh Surat Balasan resmi dan mulai perjalanan magang Anda!</p>
                 </div>
             </div>
         </div>
       </section>
 
-      {/* --- 4. CTA (Call to Action) DENGAN EFEK TOMBOL --- */}
+      {/* --- 4. CTA SECTION --- */}
       <section className="py-20 bg-[#1193b5] relative overflow-hidden">
-         {/* Background Ornaments */}
          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
          <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-black/10 rounded-full blur-3xl"></div>
          
          <div className="relative max-w-4xl mx-auto text-center px-4 z-10">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-                Ready to Start Your Journey?
-            </h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">Ready to Start Your Journey?</h2>
             <p className="text-blue-50 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed">
                 Kuota magang terbatas untuk setiap batch. Segera daftarkan diri Anda dan lengkapi berkas administrasi sekarang juga.
             </p>
             
-            {/* TOMBOL DENGAN EFEK (Bounce/Scale/Glow) */}
             <div className="flex justify-center">
                 {session ? (
                      <Link 
-                        href="/dashboard"
+                        href={dashboardLink} // <--- FIX DISINI JUGA
                         className="group relative bg-white text-[#1193b5] px-10 py-5 rounded-2xl text-xl font-bold shadow-xl transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.7)] flex items-center gap-3"
                       >
-                        <span className="relative z-10">Ke Dashboard Saya</span>
+                        <span className="relative z-10">{dashboardText}</span>
                         <ArrowRight className="group-hover:translate-x-1 transition-transform relative z-10" />
-                        {/* Glow Effect */}
                         <div className="absolute inset-0 rounded-2xl bg-white/50 blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       </Link>
                 ) : (
@@ -205,7 +192,6 @@ export default async function LandingPage() {
                       >
                         <Rocket className="group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform relative z-10" />
                         <span className="relative z-10">Daftar Sekarang</span>
-                        {/* Glow Effect */}
                         <div className="absolute inset-0 rounded-2xl bg-white/50 blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       </Link>
                 )}

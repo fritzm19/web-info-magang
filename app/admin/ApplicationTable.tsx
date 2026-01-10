@@ -1,21 +1,30 @@
+// app/admin/ApplicationTable.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import ViewCVButton from "@/components/ViewCVButton"; // <--- 1. Import Component ini
-import { Printer, Loader2 } from "lucide-react";
-import LetterPreviewButton from "@/components/admin/LetterPreviewButton";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import ViewPdfButton from "@/components/ViewPdfButton";
+import LetterModal from "@/components/admin/LetterModal"; 
+import { 
+    Check, X, Calendar, Building2, UserCircle 
+} from "lucide-react";
 
-// Define the shape of our data
+// PERBAIKAN 1: Sesuaikan nama field dengan Database Prisma (startDate/endDate)
+// PERBAIKAN 2: Izinkan nilai null (Date | null)
 type Application = {
   id: number;
   fullName: string;
   campus: string;
   major: string;
   semester: string;
+  startDate: Date | null; // Diganti dari startPeriod
+  endDate: Date | null;   // Diganti dari endPeriod
   cvUrl: string | null;
+  proposalUrl: string | null;
   status: string;
-  user: { email: string };
+  user: { email: string; name: string | null };
 };
 
 export default function ApplicationTable({ initialData }: { initialData: Application[] }) {
@@ -32,91 +41,144 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
       });
       router.refresh();
     } catch (error) {
-      alert("Failed to update status");
+      alert("Gagal mengupdate status");
     } finally { 
       setIsLoading(null);
     }
   };
 
+  // Helper aman untuk format tanggal (cegah error jika null)
+  const formatDateSafe = (date: Date | null) => {
+    if (!date) return "-";
+    return format(new Date(date), "d MMM yyyy", { locale: idLocale });
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-100">
+        <thead className="bg-gray-50/50">
           <tr>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Candidate</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Education</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Documents</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-            <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Kandidat</th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Durasi & Kampus</th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Dokumen</th>
+            <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Aksi</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-gray-100">
           {initialData.length === 0 ? (
-            <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No applications yet.</td></tr>
+            <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Belum ada data aplikasi.</td></tr>
           ) : (
-            initialData.map((app) => (  // <--- Variabelnya bernama 'app'
-              <tr key={app.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{app.fullName}</div>
-                  <div className="text-xs text-gray-500">{app.user.email}</div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {app.campus}<br />
-                  <span className="text-xs">{app.major} • Sem {app.semester}</span>
-                </td>
+            initialData.map((app) => (
+              <tr key={app.id} className="group hover:bg-gray-50/80 transition-colors duration-200">
                 
-                {/* --- BAGIAN INI YANG DIPERBAIKI --- */}
-                <td className="px-6 py-4">
-                  {app.cvUrl ? (
-                    // Ganti <a> lama dengan Component ViewCVButton
-                    // Pastikan pakai 'app.cvUrl' dan 'app.fullName'
-                    <ViewCVButton 
-                        cvUrl={app.cvUrl} 
-                        fileName={`CV_${app.fullName}.pdf`} 
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-sm italic">No CV Uploaded</span>
-                  )}
+                {/* 1. KANDIDAT */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 overflow-hidden shrink-0">
+                        <UserCircle size={24}/>
+                    </div>
+                    <div>
+                        <div className="font-bold text-gray-900 text-sm">{app.fullName}</div>
+                        <div className="text-xs text-gray-500">{app.user.email}</div>
+                    </div>
+                  </div>
                 </td>
-                {/* ---------------------------------- */}
 
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                    app.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' : 
-                    app.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {app.status}
-                  </span>
+                {/* 2. DURASI & KAMPUS */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                   <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 w-fit px-2 py-1 rounded">
+                            <Calendar size={12} className="text-blue-500"/>
+                            {/* Gunakan formatDateSafe dan field baru */}
+                            <span className="font-mono">
+                                {formatDateSafe(app.startDate)} - {formatDateSafe(app.endDate)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <Building2 size={12} />
+                            <span className="truncate max-w-[150px]" title={app.campus}>{app.campus}</span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 ml-5">{app.major}</div>
+                   </div>
                 </td>
-                <td className="px-6 py-4 text-right space-x-2">
-                  {isLoading === app.id ? (
-                    <span className="text-xs text-gray-500">Updating...</span>
-                  ) : (
-                    <>
-                      <button 
-                        onClick={() => updateStatus(app.id, "ACCEPTED")}
-                        className="text-green-600 hover:text-green-900 text-xs font-bold border border-green-200 px-2 py-1 rounded hover:bg-green-50"
-                      >
-                        Accept
-                      </button>
-                      <button 
-                        onClick={() => updateStatus(app.id, "REJECTED")}
-                        className="text-red-600 hover:text-red-900 text-xs font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
 
-                  {/* TAMPILKAN TOMBOL PRINT HANYA JIKA STATUS ACCEPTED */}
-                  {app.status === "ACCEPTED" && (
-                    <LetterPreviewButton 
-                      applicationId={app.id} 
-                      applicantName={app.fullName} 
-                    />
-                  )}
+                {/* 3. DOKUMEN */}
+                <td className="px-6 py-4">
+                  <div className="flex gap-2">
+                    {app.cvUrl ? (
+                         <div className="relative group/tooltip">
+                            {/* Variant Icon dipanggil disini */}
+                            <ViewPdfButton 
+                                url={app.cvUrl} 
+                                label="CV" 
+                                fileName={`CV_${app.fullName}.pdf`} 
+                                variant="icon" 
+                            />
+                        </div>
+                    ) : (
+                        <span className="text-gray-300">-</span>
+                    )}
+
+                    {app.proposalUrl && (
+                        <div className="relative group/tooltip">
+                            <ViewPdfButton 
+                                url={app.proposalUrl} 
+                                label="Srt" 
+                                fileName={`Pengantar_${app.fullName}.pdf`}
+                                variant="icon-secondary" 
+                            />
+                        </div>
+                    )}
+                  </div>
                 </td>
+
+                {/* 4. STATUS */}
+                <td className="px-6 py-4 text-center">
+                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize
+                    ${app.status === 'ACCEPTED' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                      app.status === 'REJECTED' ? 'bg-red-100 text-red-700 border border-red-200' : 
+                      'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                    }`}>
+                        {app.status === 'ACCEPTED' && <Check size={10} className="mr-1 stroke-[3]"/>}
+                        {app.status.toLowerCase()}
+                   </span>
+                </td>
+
+                {/* 5. AKSI */}
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end items-center gap-2">
+                    {isLoading === app.id ? (
+                      <span className="text-xs text-gray-400 animate-pulse">Saving...</span>
+                    ) : (
+                      <>
+                        {app.status === 'PENDING' && (
+                            <>
+                                <button 
+                                    onClick={() => updateStatus(app.id, "ACCEPTED")}
+                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded border border-green-200 transition"
+                                    title="Terima"
+                                >
+                                    <Check size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => updateStatus(app.id, "REJECTED")}
+                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded border border-red-200 transition"
+                                    title="Tolak"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </>
+                        )}
+
+                        {app.status === 'ACCEPTED' && (
+                            <LetterModal application={app} />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </td>
+
               </tr>
             ))
           )}

@@ -17,21 +17,30 @@ model User {
   password  String
   name      String?
   role      String   @default("USER") // "ADMIN" or "USER"
+  phone     String?  // Buat komunikasi cepat via WA
+  agency    String?  // Asal Instansi (Kampus/Sekolah) biar admin tau demografi
   createdAt DateTime @default(now())
-  application Application?
+  application Application? // Relasi ke Application (One User has One Application)
 }
 
 model Application {
   id        Int      @id @default(autoincrement())
-  userId    Int      @unique // One application per user for now
+  userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id])
-  
+
   fullName  String
-  campus    String   // University/School name
-  major     String   // Jurusan
+  campus    String
+  faculty   String?  // <--- Pastikan baris ini ADA
+  major     String
   semester  String
-  cvUrl     String?  // We will store the path to the file here (e.g., "/uploads/cv-fritz.pdf")
-  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
   
+  startDate DateTime? // <--- Pastikan ini juga ada
+  endDate   DateTime? // <--- Pastikan ini juga ada
+  
+  cvUrl       String?
+  proposalUrl String? // <--- Pastikan ini juga ada
+  
+  status    String   @default("PENDING")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

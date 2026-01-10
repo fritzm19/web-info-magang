@@ -1,43 +1,52 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // This still works because of path aliases
-import { hash } from "bcrypt";
+import { hash } from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name } = await req.json();
+    // 1. Tangkap data baru (phone & agency)
+    const { name, email, password, phone, agency } = await req.json();
 
-    // 1. Check if email exists
+    // 2. Validasi input
+    if (!name || !email || !password || !phone || !agency) {
+      return NextResponse.json(
+        { message: "Mohon lengkapi semua data (termasuk No. HP dan Asal Instansi)" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Cek apakah email sudah terdaftar
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { message: "Email already registered" },
+        { message: "Email sudah terdaftar. Silakan login." },
         { status: 400 }
       );
     }
 
-    // 2. Hash password
+    // 4. Enkripsi Password
     const hashedPassword = await hash(password, 10);
 
-    // 3. Save to Laragon MySQL
-    const user = await prisma.user.create({
+    // 5. Simpan User ke Database
+    await prisma.user.create({
       data: {
-        email,
         name,
+        email,
         password: hashedPassword,
+        phone,   // <--- Simpan No HP
+        agency,  // <--- Simpan Asal Instansi
         role: "USER",
       },
     });
 
-    return NextResponse.json(
-      { message: "User created successfully", user },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: "Registrasi berhasil!" }, { status: 201 });
   } catch (error) {
+    console.error("Register Error:", error);
     return NextResponse.json(
-      { message: "Server error occurred" },
+      { message: "Terjadi kesalahan server" },
       { status: 500 }
     );
   }

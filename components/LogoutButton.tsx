@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
 
 export default function LogoutButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,9 +18,10 @@ export default function LogoutButton() {
       {/* 1. The Trigger Button (Visible in Sidebar/Nav) */}
       <button
         onClick={() => setIsOpen(true)}
-        className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-600 hover:text-white transition"
+        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        title="Keluar"
       >
-        Logout
+        <LogOut size={20} />
       </button>
 
       {/* 2. The Pop-up Modal (Hidden until clicked) */}
