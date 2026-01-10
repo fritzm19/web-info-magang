@@ -17,17 +17,29 @@ const formatDate = (date: Date) => {
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  // Perbaikan 1: Pastikan email ada sebelum lanjut query DB
+  if (!session || !session.user?.email) {
     redirect("/login");
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user?.email! },
+    where: { 
+        // Perbaikan 1: Hapus tanda seru (!) dan tanda tanya (?) karena sudah divalidasi if di atas
+        email: session.user.email 
+    },
     include: { application: true },
   });
 
   if (!user) return <div>User not found</div>;
+  
   const app = user.application;
+
+  // Perbaikan 2: Normalisasi data user agar 'name' tidak pernah null
+  // Kita buat object baru yang 'aman' untuk dikirim ke Component
+  const sanitizedUser = {
+      ...user,
+      name: user.name || "", // Jika null, ganti jadi string kosong
+  };
 
   return (
     <>
@@ -37,7 +49,8 @@ export default async function DashboardPage() {
                 <h1 className="text-3xl font-bold text-gray-900">Lengkapi Berkas Magang</h1>
                 <p className="text-gray-500">Isi formulir berikut untuk mengajukan permohonan magang.</p>
              </div>
-            <ApplicationForm user={user} />
+            {/* Perbaikan 2: Kirim sanitizedUser, bukan user mentah */}
+            <ApplicationForm user={sanitizedUser} />
           </div>
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
@@ -114,14 +127,11 @@ export default async function DashboardPage() {
                     </span>
                   </div>
 
-                  {/* Perbaikan Garis: Menggunakan absolute left-4 agar konsisten */}
                   <div className="relative space-y-8 before:absolute before:left-4 before:top-2 before:h-[90%] before:w-0.5 before:bg-gray-100">
                     
                     {/* Step 1: Akun Terdaftar */}
                     <div className="relative pl-12">
-                      {/* Icon Centering: left-4 untuk posisi, -translate-x-1/2 untuk geser titik tengah */}
                       <span className="absolute left-4 -translate-x-1/2 top-1 w-5 h-5 bg-green-500 rounded-full ring-4 ring-white flex items-center justify-center z-10">
-                        {/* Opsional: Tambah icon check kecil didalam sini jika mau */}
                       </span>
                       <h4 className="font-bold text-gray-900 text-sm">Akun Terdaftar</h4>
                       <p className="text-xs text-gray-400 mt-1">
@@ -129,13 +139,12 @@ export default async function DashboardPage() {
                       </p>
                     </div>
 
-                    {/* Step 2: Review Admin (LOGIC UPDATE) */}
+                    {/* Step 2: Review Admin */}
                     <div className="relative pl-12">
                       <span className={`absolute left-4 -translate-x-1/2 top-1 w-5 h-5 rounded-full ring-4 ring-white flex items-center justify-center z-10 ${
                         app.status !== 'PENDING' ? 'bg-green-500' : 'bg-yellow-400'
                       }`}></span>
                       
-                      {/* Ganti teks berdasarkan status */}
                       <h4 className={`font-bold text-sm ${app.status !== 'PENDING' ? 'text-gray-900' : 'text-gray-900'}`}>
                         {app.status === 'PENDING' ? 'Menunggu Review Admin' : 'Verifikasi Berkas Selesai'}
                       </h4>
@@ -144,7 +153,6 @@ export default async function DashboardPage() {
                         {app.status === 'PENDING' ? 'Sedang diproses...' : 'Telah divalidasi oleh admin.'}
                       </p>
                       
-                      {/* Alert Kuning: Hanya muncul jika PENDING */}
                       {app.status === 'PENDING' && (
                         <div className="mt-3 bg-yellow-50 border border-yellow-100 rounded-lg p-4 text-xs text-yellow-800 flex gap-3 items-start leading-relaxed animate-in fade-in zoom-in duration-300">
                           <AlertCircle size={16} className="mt-0.5 shrink-0 text-yellow-600" />
@@ -176,6 +184,7 @@ export default async function DashboardPage() {
                     </h3>
                     
                     <div className="space-y-4">
+                        {/* CV BUTTON */}
                         {app.cvUrl && (
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors">
                                 <div className="flex items-center gap-3 overflow-hidden">
@@ -187,10 +196,15 @@ export default async function DashboardPage() {
                                         <p className="text-[10px] text-gray-400">Preview</p>
                                     </div>
                                 </div>
-                                <ViewPdfButton url={app.cvUrl} label="Lihat" fileName="CV_Saya.pdf" />
+                                <ViewPdfButton 
+                                    url={app.cvUrl} 
+                                    label="Lihat" 
+                                    fileName={`CV - ${app.fullName}.pdf`} 
+                                />
                             </div>
                         )}
 
+                        {/* PROPOSAL / SURAT PENGANTAR BUTTON */}
                         {app.proposalUrl && (
                              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors">
                                 <div className="flex items-center gap-3 overflow-hidden">
@@ -202,7 +216,11 @@ export default async function DashboardPage() {
                                         <p className="text-[10px] text-gray-400">Preview</p>
                                     </div>
                                 </div>
-                                <ViewPdfButton url={app.proposalUrl} label="Lihat" fileName="Surat_Pengantar.pdf" />
+                                <ViewPdfButton 
+                                    url={app.proposalUrl} 
+                                    label="Lihat" 
+                                    fileName={`Surat Pengantar - ${app.fullName}.pdf`} 
+                                />
                             </div>
                         )}
                     </div>

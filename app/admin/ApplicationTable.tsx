@@ -1,26 +1,23 @@
-// app/admin/ApplicationTable.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import ViewPdfButton from "@/components/ViewPdfButton";
+import ViewPdfButton from "@/components/ViewPdfButton"; // Pastikan path import benar
 import LetterModal from "@/components/admin/LetterModal"; 
 import { 
-    Check, X, Calendar, Building2, UserCircle 
+    Check, X, Calendar, Building2, UserCircle, FileText, File
 } from "lucide-react";
 
-// PERBAIKAN 1: Sesuaikan nama field dengan Database Prisma (startDate/endDate)
-// PERBAIKAN 2: Izinkan nilai null (Date | null)
 type Application = {
   id: number;
   fullName: string;
   campus: string;
   major: string;
   semester: string;
-  startDate: Date | null; // Diganti dari startPeriod
-  endDate: Date | null;   // Diganti dari endPeriod
+  startDate: Date | null;
+  endDate: Date | null;
   cvUrl: string | null;
   proposalUrl: string | null;
   status: string;
@@ -47,7 +44,6 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
     }
   };
 
-  // Helper aman untuk format tanggal (cegah error jika null)
   const formatDateSafe = (date: Date | null) => {
     if (!date) return "-";
     return format(new Date(date), "d MMM yyyy", { locale: idLocale });
@@ -59,15 +55,17 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
         <thead className="bg-gray-50/50">
           <tr>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Kandidat</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Durasi & Kampus</th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Dokumen</th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Durasi</th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Kampus</th>
+            <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">CV</th>
+            <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Srt. Pengantar</th>
             <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
             <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Aksi</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
           {initialData.length === 0 ? (
-            <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">Belum ada data aplikasi.</td></tr>
+            <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400 italic">Belum ada data aplikasi.</td></tr>
           ) : (
             initialData.map((app) => (
               <tr key={app.id} className="group hover:bg-gray-50/80 transition-colors duration-200">
@@ -85,98 +83,101 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                   </div>
                 </td>
 
-                {/* 2. DURASI & KAMPUS */}
+                {/* 2. DURASI */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                   <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 w-fit px-2 py-1 rounded">
-                            <Calendar size={12} className="text-blue-500"/>
-                            {/* Gunakan formatDateSafe dan field baru */}
-                            <span className="font-mono">
-                                {formatDateSafe(app.startDate)} - {formatDateSafe(app.endDate)}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                            <Building2 size={12} />
-                            <span className="truncate max-w-[150px]" title={app.campus}>{app.campus}</span>
-                        </div>
-                        <div className="text-[10px] text-gray-400 ml-5">{app.major}</div>
-                   </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 w-fit px-3 py-1.5 rounded-md border border-blue-100">
+                        <Calendar size={14} className="text-blue-500"/>
+                        <span className="font-mono font-medium">
+                            {formatDateSafe(app.startDate)} <br/> 
+                            <span className="text-gray-400 text-[10px]">s/d</span> {formatDateSafe(app.endDate)}
+                        </span>
+                    </div>
                 </td>
 
-                {/* 3. DOKUMEN */}
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
+                {/* 3. KAMPUS */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <Building2 size={14} className="text-gray-400"/>
+                            <span className="truncate max-w-[180px]" title={app.campus}>{app.campus}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 ml-6 mt-0.5">{app.major}</div>
+                        <div className="text-[10px] text-gray-400 ml-6">Sem. {app.semester}</div>
+                    </div>
+                </td>
+
+                {/* 4. CV */}
+                <td className="px-6 py-4 text-center align-middle">
                     {app.cvUrl ? (
-                         <div className="relative group/tooltip">
-                            {/* Variant Icon dipanggil disini */}
+                        <div className="flex justify-center">
                             <ViewPdfButton 
                                 url={app.cvUrl} 
-                                label="CV" 
-                                fileName={`CV_${app.fullName}.pdf`} 
-                                variant="icon" 
+                                label="Buka CV" 
+                                // LOGIC PENAMAAN: CV - Nama Lengkap.pdf
+                                fileName={`CV - ${app.fullName}.pdf`} 
                             />
                         </div>
                     ) : (
-                        <span className="text-gray-300">-</span>
-                    )}
-
-                    {app.proposalUrl && (
-                        <div className="relative group/tooltip">
-                            <ViewPdfButton 
-                                url={app.proposalUrl} 
-                                label="Srt" 
-                                fileName={`Pengantar_${app.fullName}.pdf`}
-                                variant="icon-secondary" 
-                            />
+                        <div className="flex flex-col items-center justify-center text-gray-300">
+                             <span className="text-[10px] italic">Tidak diupload</span>
                         </div>
                     )}
-                  </div>
                 </td>
 
-                {/* 4. STATUS */}
+                {/* 5. SURAT PENGANTAR */}
+                <td className="px-6 py-4 text-center align-middle">
+                    {app.proposalUrl ? (
+                        <div className="flex justify-center">
+                            <ViewPdfButton 
+                                url={app.proposalUrl} 
+                                label="Buka Surat" 
+                                // LOGIC PENAMAAN: Surat Pengantar - Nama Lengkap.pdf
+                                fileName={`Surat Pengantar - ${app.fullName}.pdf`}
+                            />
+                        </div>
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-gray-300">
+                             <span className="text-[10px] italic">Tidak diupload</span>
+                        </div>
+                    )}
+                </td>
+
+                {/* 6. STATUS */}
                 <td className="px-6 py-4 text-center">
-                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize
-                    ${app.status === 'ACCEPTED' ? 'bg-green-100 text-green-700 border border-green-200' : 
-                      app.status === 'REJECTED' ? 'bg-red-100 text-red-700 border border-red-200' : 
-                      'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize shadow-sm
+                    ${app.status === 'ACCEPTED' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                      app.status === 'REJECTED' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                      'bg-yellow-50 text-yellow-700 border border-yellow-200'
                     }`}>
-                        {app.status === 'ACCEPTED' && <Check size={10} className="mr-1 stroke-[3]"/>}
+                        {app.status === 'ACCEPTED' && <Check size={12} className="mr-1 stroke-[3]"/>}
+                        {app.status === 'REJECTED' && <X size={12} className="mr-1 stroke-[3]"/>}
                         {app.status.toLowerCase()}
                    </span>
                 </td>
 
-                {/* 5. AKSI */}
+                {/* 7. AKSI */}
                 <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end items-center gap-2">
-                    {isLoading === app.id ? (
-                      <span className="text-xs text-gray-400 animate-pulse">Saving...</span>
-                    ) : (
-                      <>
-                        {app.status === 'PENDING' && (
-                            <>
-                                <button 
-                                    onClick={() => updateStatus(app.id, "ACCEPTED")}
-                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded border border-green-200 transition"
-                                    title="Terima"
-                                >
-                                    <Check size={16} />
-                                </button>
-                                <button 
-                                    onClick={() => updateStatus(app.id, "REJECTED")}
-                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded border border-red-200 transition"
-                                    title="Tolak"
-                                >
-                                    <X size={16} />
-                                </button>
-                            </>
+                  {app.status !== 'REJECTED' && (
+                      <div className="flex justify-end items-center gap-2">
+                        {isLoading === app.id ? (
+                          <span className="text-xs text-gray-400 animate-pulse">Processing...</span>
+                        ) : (
+                          <>
+                            {app.status === 'PENDING' && (
+                                <>
+                                    <button onClick={() => updateStatus(app.id, "ACCEPTED")} className="p-2 text-green-600 hover:bg-green-50 rounded-lg border border-transparent hover:border-green-200 transition-all shadow-sm hover:shadow" title="Terima">
+                                        <Check size={18} />
+                                    </button>
+                                    <button onClick={() => updateStatus(app.id, "REJECTED")} className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 transition-all shadow-sm hover:shadow" title="Tolak">
+                                        <X size={18} />
+                                    </button>
+                                </>
+                            )}
+                            {app.status === 'ACCEPTED' && <LetterModal application={app} />}
+                          </>
                         )}
-
-                        {app.status === 'ACCEPTED' && (
-                            <LetterModal application={app} />
-                        )}
-                      </>
-                    )}
-                  </div>
+                      </div>
+                  )}
                 </td>
 
               </tr>
