@@ -1,17 +1,24 @@
-import NextAuth, { DefaultSession } from "next-auth"
+// types/next-auth.d.ts
+import NextAuth, { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
-  /**
-   * Returned by `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
-   */
+  // Memperluas tipe Session
   interface Session {
     user: {
-      id: string
-      role: string // Tambahkan ini
-    } & DefaultSession["user"]
+      id: string;
+      role: string; // Tambahkan ini agar TypeScript tidak error
+    } & DefaultSession["user"];
   }
 
+  // Memperluas tipe User (jika diperlukan)
   interface User {
-    role: string // Tambahkan ini juga
+    role: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role: string;
+    id: string;
   }
 }

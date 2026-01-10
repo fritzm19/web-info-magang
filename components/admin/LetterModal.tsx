@@ -6,8 +6,19 @@ import { Printer, FileBadge, X } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
-// Helper aman untuk format tanggal
-const formatDateSafe = (date: any) => {
+// 1. Definisikan tipe data Application agar tidak menggunakan 'any'
+interface Application {
+  id: number;
+  fullName: string;
+  campus: string;
+  major: string;
+  startDate: Date | string | null;
+  endDate: Date | string | null;
+}
+
+// 2. Perbaiki tipe parameter helper function
+// Menerima Date, string, number (timestamp), atau null/undefined
+const formatDateSafe = (date: Date | string | number | null | undefined) => {
   if (!date) return "...................."; // Placeholder titik-titik jika tanggal kosong
   try {
     return format(new Date(date), "d MMMM yyyy", { locale: idLocale });
@@ -16,7 +27,8 @@ const formatDateSafe = (date: any) => {
   }
 };
 
-export default function LetterModal({ application }: { application: any }) {
+// 3. Gunakan Interface Application pada props
+export default function LetterModal({ application }: { application: Application }) {
   const [open, setOpen] = useState(false);
 
   const handlePrint = () => {
@@ -26,12 +38,14 @@ export default function LetterModal({ application }: { application: any }) {
 
     if (printWindow && printContent) {
       printWindow.document.write('<html><head><title>Surat Penerimaan</title>');
+      // Menggunakan CDN Tailwind untuk styling saat print
       printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>'); 
       printWindow.document.write('</head><body class="p-8">');
       printWindow.document.write(printContent.innerHTML);
       printWindow.document.write('</body></html>');
       printWindow.document.close();
-      // Tunggu sebentar agar tailwind load sebelum print (opsional, tapi membantu)
+      
+      // Tunggu sebentar agar tailwind load sebelum print
       setTimeout(() => {
         printWindow.print();
       }, 500);
@@ -40,7 +54,6 @@ export default function LetterModal({ application }: { application: any }) {
 
   const today = format(new Date(), "d MMMM yyyy", { locale: idLocale });
   
-  // PERBAIKAN DI SINI: Menggunakan startDate/endDate dan fungsi safe
   const startDateStr = formatDateSafe(application.startDate); 
   const endDateStr = formatDateSafe(application.endDate);
 
@@ -48,7 +61,7 @@ export default function LetterModal({ application }: { application: any }) {
     <>
       <button 
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 px-3 py-1.5 bg-[#1193b5] text-white text-xs font-bold rounded-lg hover:bg-[#0e7a96] transition shadow-sm"
+        className="flex items-center gap-1 px-3 py-1.5 bg-[#1193b5] text-white text-xs font-bold rounded-lg hover:bg-blue- transition shadow-sm"
       >
         <FileBadge size={14} /> Surat
       </button>
@@ -81,7 +94,7 @@ export default function LetterModal({ application }: { application: any }) {
                         {/* KOP SURAT */}
                         <div className="flex items-center justify-center border-b-4 border-double border-black pb-4 mb-6 gap-4">
                             {/* Pastikan file logo ada di public/logo-dinas.png atau ganti src ini */}
-                            <img src="/logo-dinas.png" alt="Logo" className="h-20 w-auto object-contain" />
+                            <img src="/sulut-icon.png" alt="Logo" className="h-20 w-auto object-contain" />
                             <div className="text-center">
                                 <h2 className="text-lg font-bold uppercase">Pemerintah Provinsi Sulawesi Utara</h2>
                                 <h1 className="text-xl font-black uppercase">Dinas Komunikasi, Informatika, Persandian dan Statistik</h1>

@@ -6,6 +6,10 @@ import ApplicationForm from "@/components/dashboard/ApplicationForm";
 import ViewPdfButton from "@/components/ViewPdfButton"; 
 import { Clock, FileText, HelpCircle, AlertCircle } from "lucide-react";
 
+export const metadata = {
+  title: "Dashboard Peserta",
+};
+
 // Helper format tanggal
 const formatDate = (date: Date) => {
   return new Intl.DateTimeFormat("id-ID", {

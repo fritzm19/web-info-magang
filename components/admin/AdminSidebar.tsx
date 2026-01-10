@@ -1,145 +1,86 @@
-// components/admin/LetterModal.tsx
 "use client";
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"; // Asumsi pakai Shadcn/Radix, atau pakai modal HTML biasa
-import { Printer, FileBadge, X } from "lucide-react";
-import { format } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Session } from "next-auth"; // Import tipe Session
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  LogOut,
+  Shield
+} from "lucide-react";
+import { signOut } from "next-auth/react";
 
-export default function LetterModal({ application }: { application: any }) {
-  const [open, setOpen] = useState(false);
+// --- PERBAIKAN DI SINI ---
+// Ubah interface agar menerima 'session', bukan 'application'
+interface AdminSidebarProps {
+  session: Session | null;
+}
 
-  // Fungsi Print Khusus Div
-  const handlePrint = () => {
-    const printContent = document.getElementById("letter-content");
-    const windowUrl = window.location.href;
-    const windowName = "SuratPenerimaan";
-    // Trik simple: Gunakan CSS @media print di global css, atau buka window baru
-    // Cara window baru lebih aman untuk formatting:
-    const printWindow = window.open("", windowName, "height=800,width=800");
-    if(printWindow && printContent) {
-        printWindow.document.write('<html><head><title>Surat Penerimaan</title>');
-        printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>'); // Load Tailwind agar style terbawa
-        printWindow.document.write('</head><body class="p-8">');
-        printWindow.document.write(printContent.innerHTML);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.print();
-    }
-  };
+export default function AdminSidebar({ session }: AdminSidebarProps) {
+  const pathname = usePathname();
 
-  const today = format(new Date(), "d MMMM yyyy", { locale: idLocale });
-  const startDate = format(new Date(application.startPeriod), "d MMMM yyyy", { locale: idLocale });
-  const endDate = format(new Date(application.endPeriod), "d MMMM yyyy", { locale: idLocale });
+  const menuItems = [
+    { href: "/admin", label: "Overview", icon: LayoutDashboard },
+    { href: "/admin/applications", label: "Permohonan", icon: FileText },
+    { href: "/admin/users", label: "Pengguna", icon: Users },
+  ];
 
   return (
-    <>
-      <button 
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1 px-3 py-1.5 bg-[#1193b5] text-white text-xs font-bold rounded-lg hover:bg-[#0e7a96] transition shadow-sm"
-      >
-        <FileBadge size={14} /> Surat
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-xl w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
-                
-                {/* Modal Header */}
-                <div className="flex justify-between items-center p-4 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-800">Preview Surat Balasan</h3>
-                    <div className="flex gap-2">
-                        <button onClick={handlePrint} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-900 transition">
-                            <Printer size={16} /> Cetak PDF
-                        </button>
-                        <button onClick={() => setOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-                            <X size={20} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Modal Body (Scrollable) */}
-                <div className="flex-1 overflow-y-auto bg-gray-100 p-8 flex justify-center">
-                    
-                    {/* KERTAS A4 VISUALIZATION */}
-                    <div 
-                        id="letter-content"
-                        className="bg-white shadow-lg p-[2.5cm] w-[21cm] min-h-[29.7cm] text-black leading-relaxed text-[12pt] font-serif relative"
-                    >
-                        {/* KOP SURAT */}
-                        <div className="flex items-center justify-center border-b-4 border-double border-black pb-4 mb-6 gap-4">
-                             {/* Ganti src logo dengan logo dinas daerahmu */}
-                            <img src="/logo-dinas.png" alt="Logo" className="h-20 w-auto object-contain" />
-                            <div className="text-center">
-                                <h2 className="text-lg font-bold uppercase">Pemerintah Provinsi Sulawesi Utara</h2>
-                                <h1 className="text-xl font-black uppercase">Dinas Komunikasi, Informatika, Persandian dan Statistik</h1>
-                                <p className="text-sm italic mt-1">Jl. 17 Agustus No. 69, Teling Atas, Kec. Wanea, Kota Manado</p>
-                            </div>
-                        </div>
-
-                        {/* ISI SURAT */}
-                        <div className="flex justify-between items-start mb-6">
-                            <div>
-                                <p>Nomor: 800 / Diskominfo / {application.id} / 2026</p>
-                                <p>Lampiran: -</p>
-                                <p>Perihal: <span className="font-bold underline">Penerimaan Permohonan Magang</span></p>
-                            </div>
-                            <div className="text-right">
-                                <p>Manado, {today}</p>
-                            </div>
-                        </div>
-
-                        <p className="mb-4">Yth. Ketua Program Studi {application.major}</p>
-                        <p className="mb-6">{application.campus}</p>
-
-                        <p className="mb-4 text-justify indent-8">
-                            Sehubungan dengan surat permohonan magang/praktik kerja lapangan yang diajukan oleh mahasiswa:
-                        </p>
-
-                        <table className="w-full mb-6 ml-4">
-                            <tbody>
-                                <tr>
-                                    <td className="w-40 font-bold py-1">Nama</td>
-                                    <td>: {application.fullName}</td>
-                                </tr>
-                                <tr>
-                                    <td className="font-bold py-1">NIM / NIK</td>
-                                    <td>: (Sesuaikan Data)</td>
-                                </tr>
-                                <tr>
-                                    <td className="font-bold py-1">Program Studi</td>
-                                    <td>: {application.major}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <p className="mb-4 text-justify indent-8">
-                            Dengan ini kami sampaikan bahwa Dinas Komunikasi, Informatika, Persandian dan Statistik Daerah Provinsi Sulawesi Utara 
-                            <span className="font-bold"> DAPAT MENERIMA</span> mahasiswa tersebut untuk melaksanakan kegiatan Magang terhitung mulai tanggal 
-                            <span className="font-bold"> {startDate} s.d {endDate}</span>.
-                        </p>
-
-                        <p className="mb-8 text-justify indent-8">
-                            Demikian surat balasan ini kami sampaikan, atas perhatian dan kerjasamanya diucapkan terima kasih.
-                        </p>
-
-                        {/* TANDA TANGAN */}
-                        <div className="flex justify-end mt-16">
-                            <div className="text-center w-64">
-                                <p>Kepala Dinas,</p>
-                                <div className="h-24"></div> {/* Space Tanda Tangan */}
-                                <p className="font-bold underline decoration-1 underline-offset-4">Dr. NAMA KEPALA DINAS, M.Si</p>
-                                <p>NIP. 19700101 200003 1 001</p>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-            </div>
+    <aside className="hidden md:flex flex-col w-64 bg-[#1e293b] text-white h-screen shrink-0 sticky top-0">
+      
+      {/* Header Sidebar */}
+      <div className="p-6 border-b border-gray-700 flex items-center gap-3">
+        <div className="bg-blue-500 p-2 rounded-lg">
+            <Shield size={24} className="text-white"/>
         </div>
-      )}
-    </>
+        <div>
+            <h1 className="font-bold text-lg tracking-wide">Admin Panel</h1>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Diskominfo</p>
+        </div>
+      </div>
+
+      {/* User Info (Dari Session) */}
+      <div className="px-6 py-6">
+        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+            <p className="text-xs text-gray-400 mb-1">Login sebagai:</p>
+            <p className="text-sm font-bold truncate">{session?.user?.name || "Admin"}</p>
+            <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
+        </div>
+      </div>
+
+      {/* Navigasi */}
+      <nav className="flex-1 px-4 space-y-2">
+        {menuItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+              }`}
+            >
+              <item.icon size={18} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer / Logout */}
+      <div className="p-4 border-t border-gray-700">
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition text-sm font-medium"
+        >
+          <LogOut size={18} />
+          Keluar
+        </button>
+      </div>
+    </aside>
   );
 }

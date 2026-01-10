@@ -101,10 +101,14 @@ export default function ApplicationForm({ user }: ApplicationFormProps) {
       router.refresh(); 
       alert("Lamaran berhasil dikirim!");
 
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
+
+      // Cek apakah error adalah instance dari object Error standar JavaScript
+      const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan. Coba lagi.";
+    
       // Tampilkan error asli ke user
-      alert(error.message || "Terjadi kesalahan. Coba lagi.");
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

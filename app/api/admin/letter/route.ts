@@ -9,7 +9,6 @@ import {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  // @ts-expect-error: role check
   if (!session || session.user?.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -215,7 +214,7 @@ export async function POST(req: Request) {
 
     const buffer = await Packer.toBuffer(doc);
 
-    return new NextResponse(buffer as any, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="Surat_Balasan_${app.fullName.replace(/\s+/g, '_')}.docx"`,

@@ -16,7 +16,6 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     // 3. Validasi Tanggal (Cegah Invalid Date)
-    // Jika user kirim string kosong "", new Date() akan error/invalid di Prisma
     const startDate = body.startDate ? new Date(body.startDate) : null;
     const endDate = body.endDate ? new Date(body.endDate) : null;
 
@@ -44,8 +43,8 @@ export async function POST(req: Request) {
         faculty: body.faculty,
         major: body.major,
         semester: body.semester,
-        startDate: startDate, // Gunakan variabel yang sudah divalidasi
-        endDate: endDate,     // Gunakan variabel yang sudah divalidasi
+        startDate: startDate,
+        endDate: endDate,
         cvUrl: body.cvUrl,
         proposalUrl: body.proposalUrl,
         status: "PENDING",
@@ -67,13 +66,16 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: "Berhasil disimpan", data: application });
 
-  } catch (error: any) {
-    // Log error detail ke terminal server (PENTING BUAT DEBUG)
+  } catch (error) { // HAPUS ': any'
+    // Log error detail ke terminal server
     console.error("Submit Error Full:", error);
     
-    // Kirim pesan error asli ke frontend
+    // Type checking: apakah error ini object Error standar?
+    const errorMessage = error instanceof Error ? error.message : "Gagal menyimpan data ke database";
+    
+    // Kirim pesan error yang sudah divalidasi
     return NextResponse.json({ 
-        message: error.message || "Gagal menyimpan data ke database" 
+        message: errorMessage
     }, { status: 500 });
   }
 }

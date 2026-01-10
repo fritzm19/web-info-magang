@@ -15,6 +15,10 @@ import {
   Rocket
 } from "lucide-react"; 
 
+export const metadata = {
+  title: "Beranda",
+};
+
 export default async function LandingPage() {
   const session = await getServerSession(authOptions);
 
@@ -46,7 +50,7 @@ export default async function LandingPage() {
           
           <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight mb-8 leading-tight">
             Start Your Career Journey <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1193b5] to-blue-600">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-[#1193b5] to-blue-600">
               With Us Today.
             </span>
           </h1>
@@ -60,14 +64,14 @@ export default async function LandingPage() {
             {session ? (
               <Link 
                 href={dashboardLink} // <--- SUDAH DIPERBAIKI (Dinamis)
-                className="bg-[#1193b5] text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-[#0e7a96] transition shadow-lg hover:shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
+                className="bg-[#1193b5] text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-blue transition shadow-lg hover:shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
               >
                 {dashboardText} <ArrowRight size={20} />
               </Link>
             ) : (
               <Link 
                 href="/register"
-                className="bg-[#1193b5] text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-[#0e7a96] transition shadow-lg hover:shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
+                className="bg-[#1193b5] text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-blue transition shadow-lg hover:shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
               >
                 Apply Now <ArrowRight size={20} />
               </Link>

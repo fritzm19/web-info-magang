@@ -45,16 +45,13 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async session({ session, token }) {
       if (session?.user) {
-        // @ts-expect-error: Custom role field
         session.user.role = token.role;
-        // @ts-expect-error: Custom id field
         session.user.id = token.id;
       }
       return session;
     },
     async jwt({ token, user }) {
       if (user) {
-        // @ts-expect-error: Custom role field
         token.role = user.role;
         token.id = user.id;
       }

@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import ViewPdfButton from "@/components/ViewPdfButton"; // Pastikan path import benar
+import ViewPdfButton from "@/components/ViewPdfButton"; 
 import LetterModal from "@/components/admin/LetterModal"; 
 import { 
-    Check, X, Calendar, Building2, UserCircle, FileText, File
+    Check, X, Calendar, Building2, UserCircle
 } from "lucide-react";
 
 type Application = {
@@ -38,6 +38,8 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
       });
       router.refresh();
     } catch (error) {
+      // PERBAIKAN: Gunakan variabel error (log ke console)
+      console.error("Update Status Error:", error); 
       alert("Gagal mengupdate status");
     } finally { 
       setIsLoading(null);
@@ -99,7 +101,7 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                             <Building2 size={14} className="text-gray-400"/>
-                            <span className="truncate max-w-[180px]" title={app.campus}>{app.campus}</span>
+                            <span className="truncate max-w-45" title={app.campus}>{app.campus}</span>
                         </div>
                         <div className="text-xs text-gray-500 ml-6 mt-0.5">{app.major}</div>
                         <div className="text-[10px] text-gray-400 ml-6">Sem. {app.semester}</div>
@@ -113,7 +115,6 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                             <ViewPdfButton 
                                 url={app.cvUrl} 
                                 label="Buka CV" 
-                                // LOGIC PENAMAAN: CV - Nama Lengkap.pdf
                                 fileName={`CV - ${app.fullName}.pdf`} 
                             />
                         </div>
@@ -131,7 +132,6 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                             <ViewPdfButton 
                                 url={app.proposalUrl} 
                                 label="Buka Surat" 
-                                // LOGIC PENAMAAN: Surat Pengantar - Nama Lengkap.pdf
                                 fileName={`Surat Pengantar - ${app.fullName}.pdf`}
                             />
                         </div>
@@ -149,8 +149,8 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
                       app.status === 'REJECTED' ? 'bg-red-50 text-red-700 border border-red-200' : 
                       'bg-yellow-50 text-yellow-700 border border-yellow-200'
                     }`}>
-                        {app.status === 'ACCEPTED' && <Check size={12} className="mr-1 stroke-[3]"/>}
-                        {app.status === 'REJECTED' && <X size={12} className="mr-1 stroke-[3]"/>}
+                        {app.status === 'ACCEPTED' && <Check size={12} className="mr-1 stroke-3"/>}
+                        {app.status === 'REJECTED' && <X size={12} className="mr-1 stroke-3"/>}
                         {app.status.toLowerCase()}
                    </span>
                 </td>

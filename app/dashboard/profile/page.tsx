@@ -8,6 +8,10 @@ import {
   FileText, Building2, School, Clock, AlertCircle 
 } from "lucide-react";
 
+export const metadata = {
+  title: "Profile Peserta",
+};
+
 // Helper format tanggal
 const formatDate = (date: Date | null) => {
   if (!date) return "-";
