@@ -2,18 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Session } from "next-auth"; // Import tipe Session
+import { Session } from "next-auth";
 import { 
   LayoutDashboard, 
   FileText, 
   Users, 
   LogOut,
-  Shield
+  Shield,
+  ClipboardCheck // 👈 Import this
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-// --- PERBAIKAN DI SINI ---
-// Ubah interface agar menerima 'session', bukan 'application'
 interface AdminSidebarProps {
   session: Session | null;
 }
@@ -24,13 +23,15 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
   const menuItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/applications", label: "Permohonan", icon: FileText },
+    // 👇 ADD THIS LINE
+    { href: "/admin/permissions", label: "Izin & Absensi", icon: ClipboardCheck },
     { href: "/admin/users", label: "Pengguna", icon: Users },
   ];
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-[#1e293b] text-white h-screen shrink-0 sticky top-0">
       
-      {/* Header Sidebar */}
+      {/* Header */}
       <div className="p-6 border-b border-gray-700 flex items-center gap-3">
         <div className="bg-blue-500 p-2 rounded-lg">
             <Shield size={24} className="text-white"/>
@@ -41,7 +42,7 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
         </div>
       </div>
 
-      {/* User Info (Dari Session) */}
+      {/* User Info */}
       <div className="px-6 py-6">
         <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
             <p className="text-xs text-gray-400 mb-1">Login sebagai:</p>
@@ -50,10 +51,16 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
         </div>
       </div>
 
-      {/* Navigasi */}
+      {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href;
+          // Highlight Logic:
+          // 1. Exact match (e.g. /admin/users)
+          // 2. Sub-path match (e.g. /admin/users/123) BUT exclude root /admin from matching everything
+          const isActive = 
+            pathname === item.href || 
+            (item.href !== '/admin' && pathname.startsWith(`${item.href}/`));
+
           return (
             <Link
               key={item.href}
@@ -71,7 +78,7 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* Footer / Logout */}
+      {/* Footer */}
       <div className="p-4 border-t border-gray-700">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

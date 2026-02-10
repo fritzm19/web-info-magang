@@ -2,16 +2,18 @@
 
 import { Session } from "next-auth";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, User } from "lucide-react"; 
+import { LayoutDashboard, User, Camera, FileText } from "lucide-react"; // 1. Add Camera here
 import Link from "next/link";
 
 export default function Sidebar({ session }: { session: Session | null }) {
   const pathname = usePathname();
   const isActive = (path: string) => pathname === path;
 
-  // HAPUS "Formulir Magang", sisa Dashboard saja
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    // 2. Add the new menu item here
+    { name: "Scan Presensi", href: "/dashboard/attendance", icon: Camera }, 
+    { name: "Izin / Sakit", href: "/dashboard/permission", icon: FileText }, // Import FileText icon
   ];
 
   return (
