@@ -1,64 +1,82 @@
 "use client";
 
-import { Session } from "next-auth";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, User, Camera, FileText } from "lucide-react"; // 1. Add Camera here
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, Camera, FileText, FolderGit2, User, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 
-export default function Sidebar({ session }: { session: Session | null }) {
+// Helper to check status (Simple version)
+// In a real app, you might want to pass this status down from a parent layout
+// or put it in the NextAuth session.
+async function checkApplicationStatus() {
+    try {
+        const res = await fetch("/api/application/status"); // You'll need this simple API
+        const data = await res.json();
+        return data.status; // "PENDING", "ACCEPTED", "REJECTED"
+    } catch {
+        return "PENDING";
+    }
+}
+
+export default function Sidebar() {
   const pathname = usePathname();
-  const isActive = (path: string) => pathname === path;
+  const [status, setStatus] = useState("PENDING"); 
+  
+  useEffect(() => {
+    checkApplicationStatus().then(setStatus);
+  }, []);
+
+  // Determine if user has full access
+  const isAccepted = status === "ACCEPTED"; // Or checking if role === "ADMIN"
 
   const menuItems = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    // 2. Add the new menu item here
-    { name: "Scan Presensi", href: "/dashboard/attendance", icon: Camera }, 
-    { name: "Izin / Sakit", href: "/dashboard/permission", icon: FileText }, // Import FileText icon
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, visible: true },
+        
+    // RESTRICTED MENUS
+    { name: "Scan Presensi", href: "/dashboard/attendance", icon: Camera, visible: isAccepted },
+    { name: "Izin / Sakit", href: "/dashboard/permission", icon: FileText, visible: isAccepted },
+    { name: "Project", href: "/dashboard/projects", icon: FolderGit2, visible: isAccepted },
+
+    { name: "Profil Saya", href: "/dashboard/profile", icon: User, visible: true }, // Always visible
   ];
 
   return (
-    <aside className="w-64 bg-[#1193b5] text-white hidden md:flex flex-col sticky top-0 h-screen z-40 shadow-xl">
-      
-      {/* HEADER */}
-      <div className="h-20 flex flex-col justify-center px-6 border-b border-white/10">
-        <h1 className="text-xl font-bold tracking-tight">Portal Magang</h1>
-        <p className="text-xs text-blue-100 opacity-80 mt-1">Dinas Kominfo Sulut</p>
+    <aside className="w-64 bg-white h-screen border-r border-gray-100 flex flex-col sticky top-0">
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-[#1193b5]">Portal Magang</h1>
+        <p className="text-xs text-gray-400 mt-1">Dinas Kominfo Sulut</p>
       </div>
 
-      {/* MENU */}
-      <nav className="flex-1 p-4 space-y-2 mt-2">
-        {menuItems.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl font-medium transition-all ${
-               isActive(item.href) 
-                ? "bg-white/20 text-white shadow-sm" 
-                : "text-blue-50 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <item.icon size={20} /> 
-            {item.name}
-          </Link>
-        ))}
+      <nav className="flex-1 px-4 space-y-2 mt-4">
+        {menuItems.filter(item => item.visible).map((item) => {
+            const isActive = pathname === item.href;
+            return (
+                <Link 
+                    key={item.href} 
+                    href={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                        isActive 
+                        ? "bg-[#1193b5] text-white shadow-md shadow-blue-200" 
+                        : "text-gray-500 hover:bg-gray-50 hover:text-[#1193b5]"
+                    }`}
+                >
+                    <item.icon size={20} />
+                    {item.name}
+                </Link>
+            )
+        })}
       </nav>
 
-      {/* FOOTER PROFILE */}
-      <div className="p-4 border-t border-white/10 bg-[#0e7a96]">
-        <Link href="/dashboard/profile" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold border border-white/30 shrink-0 group-hover:bg-white/30 transition">
-                {session?.user?.name?.[0]?.toUpperCase() || <User size={20} />}
-            </div>
-            
-            <div className="overflow-hidden">
-                <p className="text-sm font-bold truncate text-white leading-tight">
-                    {session?.user?.name?.split(" ")[0]}
-                </p>
-                <p className="text-[10px] text-blue-200 group-hover:text-white transition-colors">
-                    Lihat Profil
-                </p>
-            </div>
-        </Link>
+      {/* Footer / Logout */}
+      <div className="p-4 border-t border-gray-100">
+        <button 
+            onClick={() => signOut()}
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition"
+        >
+            <LogOut size={20} />
+            Keluar
+        </button>
       </div>
     </aside>
   );

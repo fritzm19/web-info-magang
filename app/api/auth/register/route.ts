@@ -1,53 +1,39 @@
 import { NextResponse } from "next/server";
-import { hash } from "bcryptjs";
+import { hash } from "bcrypt";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    // 1. Tangkap data baru (phone & agency)
-    const { name, email, password, phone, agency } = await req.json();
+    const body = await req.json(); // Back to JSON
+    const { name, email, password, phone, agency } = body;
 
-    // 2. Validasi input
-    if (!name || !email || !password || !phone || !agency) {
-      return NextResponse.json(
-        { message: "Mohon lengkapi semua data (termasuk No. HP dan Asal Instansi)" },
-        { status: 400 }
-      );
+    if (!email || !password || !name || !phone || !agency) {
+      return NextResponse.json({ error: "Semua data wajib diisi" }, { status: 400 });
     }
 
-    // 3. Cek apakah email sudah terdaftar
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return NextResponse.json(
-        { message: "Email sudah terdaftar. Silakan login." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 400 });
     }
 
-    // 4. Enkripsi Password
     const hashedPassword = await hash(password, 10);
 
-    // 5. Simpan User ke Database
+    // Create User ONLY (No avatar yet)
     await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        phone,   // <--- Simpan No HP
-        agency,  // <--- Simpan Asal Instansi
-        role: "USER",
-      },
+        phone,
+        agency,
+        role: "USER"
+      }
     });
 
-    return NextResponse.json({ message: "Registrasi berhasil!" }, { status: 201 });
+    return NextResponse.json({ success: true });
+
   } catch (error) {
     console.error("Register Error:", error);
-    return NextResponse.json(
-      { message: "Terjadi kesalahan server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal mendaftar" }, { status: 500 });
   }
 }

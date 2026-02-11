@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
-import { Camera, AlertCircle, CheckCircle2, RefreshCw, Save, FlipHorizontal, Power, Loader2 } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle2, Power, FlipHorizontal, Loader2, Coffee, LogOut, Play } from 'lucide-react';
+
+type AttendanceStatus = 'ABSENT' | 'PRESENT' | 'ON_BREAK' | 'CHECKED_OUT';
 
 export default function AttendancePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -13,26 +15,35 @@ export default function AttendancePage() {
 
   // UX Settings
   const [isMirrored, setIsMirrored] = useState(true);
-  const [isCameraActive, setIsCameraActive] = useState(true);
+  const [isCameraActive, setIsCameraActive] = useState(false);
 
   // App States
-  const [mode, setMode] = useState<'LOADING' | 'REGISTER' | 'CHECK_IN'>('LOADING');
-  const [status, setStatus] = useState("Initializing System...");
+  const [mode, setMode] = useState<'LOADING' | 'REGISTER' | 'CHECK_IN' | 'DASHBOARD' | 'CHECK_OUT'>('LOADING');
+  const [statusMsg, setStatusMsg] = useState("Initializing System...");
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
-  const [isSnapshotting, setIsSnapshotting] = useState(false); // 🔒 NEW LOCK STATE
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
   
+  // Data States
+  const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>('ABSENT');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [tempDescriptor, setTempDescriptor] = useState<Float32Array | null>(null);
   const [matcher, setMatcher] = useState<faceapi.FaceMatcher | null>(null);
   const lastCheckInRef = useRef(0);
 
-  // 1. Initialize
+  // Break Modal State
+  const [showBreakModal, setShowBreakModal] = useState(false);
+  const [breakReason, setBreakReason] = useState("");
+  const [breakFile, setBreakFile] = useState<File | null>(null);
+  const [isBreakLoading, setIsBreakLoading] = useState(false);
+
+  // 1. Initialize System
   useEffect(() => {
     const init = async () => {
       try {
-        navigator.geolocation.getCurrentPosition(() => {}, () => setStatus("⚠️ Allow Location Access"));
+        navigator.geolocation.getCurrentPosition(() => {}, () => setStatusMsg("⚠️ Allow Location Access"));
 
+        // Load Models
         const MODEL_URL = '/models';
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -42,35 +53,66 @@ export default function AttendancePage() {
         ]);
         setModelsLoaded(true);
 
-        const res = await fetch('/api/user/face-descriptor');
-        const data = await res.json();
+        // Check User Face & Today's Status
+        const [faceRes, statusRes] = await Promise.all([
+            fetch('/api/user/face-descriptor'),
+            fetch('/api/attendance/today')
+        ]);
 
-        if (data.hasFace) {
-           const descriptor = new Float32Array(data.descriptor);
-           const labeled = new faceapi.LabeledFaceDescriptors(data.name || 'You', [descriptor]);
-           setMatcher(new faceapi.FaceMatcher(labeled, 0.6));
-           setMode('CHECK_IN');
-           setStatus("Ready. Smile to Check In!");
-        } else {
-           setMode('REGISTER');
-           setStatus("Registration Mode.");
+        const faceData = await faceRes.json();
+        const statusData = await statusRes.json();
+
+        // --- LOGIC UPDATE STARTS HERE ---
+        
+        // CASE A: User is already checked in / on break / checked out
+        if (statusData.status && statusData.status !== 'ABSENT') {
+            setAttendanceStatus(statusData.status);
+            setMode('DASHBOARD'); 
+            setStatusMsg("Welcome back!");
+            setIsCameraActive(false); // <--- ENSURE CAM IS OFF
+        } 
+        // CASE B: User needs to Scan (Check In or Register)
+        else {
+            if (faceData.hasFace) {
+                const descriptor = new Float32Array(faceData.descriptor);
+                const labeled = new faceapi.LabeledFaceDescriptors(faceData.name || 'You', [descriptor]);
+                setMatcher(new faceapi.FaceMatcher(labeled, 0.6));
+                
+                setMode('CHECK_IN');
+                setStatusMsg("Ready. Smile to Check In!");
+                setIsCameraActive(true); // <--- TURN CAM ON ONLY NOW
+            } else {
+                setMode('REGISTER');
+                setStatusMsg("Registration Mode.");
+                setIsCameraActive(true); // <--- TURN CAM ON ONLY NOW
+            }
         }
+        // -------------------------------
+
       } catch (err) {
-        setStatus("System Error: Refresh page.");
+        console.error("Init Error:", err);
+        setStatusMsg("System Error: Refresh page.");
       }
     };
     init();
   }, []);
 
   // 2. Camera Manager
+  // Update the condition to be strict about MODE
   useEffect(() => {
-    if (isCameraActive && !capturedImage && modelsLoaded) {
+    const shouldRunCamera = 
+        isCameraActive && 
+        !capturedImage && 
+        modelsLoaded && 
+        (mode === 'CHECK_IN' || mode === 'REGISTER' || mode === 'CHECK_OUT'); // <--- STRICT CHECK
+
+    if (shouldRunCamera) {
       startVideo();
     } else {
       stopVideo();
     }
     return () => stopVideo();
-  }, [isCameraActive, capturedImage, modelsLoaded]);
+  }, [isCameraActive, capturedImage, modelsLoaded, mode]);
 
   const startVideo = async () => {
     try {
@@ -82,11 +124,11 @@ export default function AttendancePage() {
         videoRef.current.srcObject = stream;
       }
       
-      if (mode === 'CHECK_IN') setStatus("Ready. Smile to Check In!");
-      else if (mode === 'REGISTER') setStatus("Registration Mode.");
+      if (mode === 'CHECK_IN') setStatusMsg("Ready. Smile to Check In!");
+      else if (mode === 'REGISTER') setStatusMsg("Registration Mode.");
 
     } catch (e) {
-      setStatus("Camera Error: Click Start to retry.");
+      setStatusMsg("Camera Error: Click Start to retry.");
       setIsCameraActive(false);
     }
   };
@@ -100,25 +142,18 @@ export default function AttendancePage() {
       videoRef.current.srcObject = null;
     }
     setIsFaceDetected(false);
-    if (!capturedImage) setStatus(""); 
   };
 
   // 3. ACTIONS
   const takeSnapshot = async () => {
-      // 🔒 Safety Checks
       if (!videoRef.current || isSnapshotting) return;
       if (videoRef.current.paused || videoRef.current.ended) return;
 
-      setIsSnapshotting(true); // 🔒 Lock the button
-      setStatus("Processing image...");
+      setIsSnapshotting(true);
+      setStatusMsg("Processing image...");
 
       try {
         const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-
-        // 🔒 Double Check: Did the camera turn off while we were waiting?
-        if (!videoRef.current || videoRef.current.videoWidth === 0) {
-            throw new Error("Camera disconnected during capture");
-        }
 
         if (detection) {
             setTempDescriptor(detection.descriptor);
@@ -133,16 +168,14 @@ export default function AttendancePage() {
             }
             
             setCapturedImage(canvas.toDataURL('image/jpeg'));
-            setStatus("Face captured. Save to finish.");
-            // REMOVED: setIsCameraActive(false); <--- This was causing the crash!
+            setStatusMsg("Face captured. Save to finish.");
         } else {
-            setStatus("No face detected. Try again.");
+            setStatusMsg("No face detected. Try again.");
         }
       } catch (err) {
-        console.error(err);
-        setStatus("Error taking photo. Try again.");
+        setStatusMsg("Error taking photo. Try again.");
       } finally {
-        setIsSnapshotting(false); // 🔓 Unlock
+        setIsSnapshotting(false);
       }
   };
 
@@ -161,56 +194,135 @@ export default function AttendancePage() {
       setTempDescriptor(null);
       setIsCameraActive(true); 
   };
-  
+   
   const handleCheckIn = async (match: faceapi.FaceMatch, isSmiling: boolean) => {
-    if (Date.now() - lastCheckInRef.current < 10000 || isSubmittingRef.current) return;
+    // Prevent spam check
+    if (Date.now() - lastCheckInRef.current < 5000 || isSubmittingRef.current) return;
     if (match.label === 'unknown' || !isSmiling) return; 
 
     isSubmittingRef.current = true;
-    setStatus("Verifying Location...");
+    setStatusMsg(mode === 'CHECK_OUT' ? "Memproses Absen Pulang..." : "Verifikasi Lokasi...");
     
+    // Tentukan URL API berdasarkan mode
+    const apiEndpoint = mode === 'CHECK_OUT' ? '/api/attendance/checkout' : '/api/attendance/check-in';
+
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
-        const res = await fetch('/api/attendance/check-in', {
+        const res = await fetch(apiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         });
         const json = await res.json();
+        
         if (json.success) {
-           setStatus("✅ Checked In!");
+           // 1. TAMPILKAN NOTIFIKASI (ALERT)
+           // Ini akan menahan tampilan sebentar sampai user klik "OK"
+           if (mode === 'CHECK_OUT') {
+               alert("Berhasil absen pulang. Hati-hati di jalan! 👋");
+               setAttendanceStatus('CHECKED_OUT');
+           } else {
+               alert("Berhasil absen masuk. Selamat bekerja! 🚀");
+               setAttendanceStatus('PRESENT');
+           }
+
+           // 2. SETELAH KLIK OK, BARU PINDAH TAMPILAN
+           setStatusMsg(mode === 'CHECK_OUT' ? "👋 Sampai Jumpa!" : "✅ Berhasil Masuk!");
+           setMode('DASHBOARD'); 
+           setIsCameraActive(false); 
            lastCheckInRef.current = Date.now();
         } else {
-           setStatus(`❌ ${json.error}`);
+           setStatusMsg(`❌ ${json.error}`);
         }
-      } catch(e) { setStatus("Network Error"); }
+      } catch(e) { setStatusMsg("Network Error"); }
       finally { isSubmittingRef.current = false; }
-    }, () => { setStatus("GPS Error"); isSubmittingRef.current = false; });
+    }, () => { setStatusMsg("GPS Error"); isSubmittingRef.current = false; });
   };
 
-  // 4. AI Loop
+  // 4. BREAK & CHECKOUT HANDLER
+  const handleStatusChange = async (action: "START" | "END" | "CHECK_OUT") => {
+    setIsBreakLoading(true);
+    try {
+        // --- NEW: Handle Check Out ---
+        if (action === "CHECK_OUT") {
+            if(!confirm("Apakah Anda yakin ingin absen pulang?")) {
+                setIsBreakLoading(false);
+                return;
+            }
+
+            const res = await fetch("/api/attendance/checkout", {
+                method: "POST",
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setAttendanceStatus("CHECKED_OUT"); // Update UI locally
+                alert("Berhasil absen pulang. Hati-hati di jalan!");
+            } else {
+                alert(data.error || "Gagal absen pulang.");
+            }
+            setIsBreakLoading(false);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("action", action);
+        
+        if (action === "START") {
+            formData.append("reason", breakReason);
+            if (breakFile) {
+                formData.append("file", breakFile);
+            }
+        }
+
+        const res = await fetch("/api/attendance/break", {
+            method: "POST",
+            body: formData, 
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            setAttendanceStatus(data.status);
+            setShowBreakModal(false);
+            setBreakReason("");
+            setBreakFile(null); 
+        } else {
+            alert(data.error || "Gagal memproses.");
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Terjadi kesalahan sistem.");
+    } finally {
+        setIsBreakLoading(false);
+    }
+  };
+
+  // 5. AI Loop
   const handleVideoPlay = () => {
     const video = videoRef.current;
     if (!video || !modelsLoaded) return;
 
     const interval = setInterval(async () => {
-      if (video.paused || video.ended || isProcessingRef.current || mode === 'REGISTER') return;
+      if (video.paused || video.ended || isProcessingRef.current || (mode !== 'CHECK_IN' && mode !== 'CHECK_OUT')) return;
       isProcessingRef.current = true;
 
       try {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
         
-        if (mode === 'CHECK_IN' && matcher && detections.length > 0) {
-             const d = detections[0];
-             const match = matcher.findBestMatch(d.descriptor);
-             const isSmiling = d.expressions.happy > 0.7;
-             
-             if (match.label !== 'unknown') {
-                setIsFaceDetected(true);
-                if (isSmiling) handleCheckIn(match, isSmiling);
-             } else {
-                setIsFaceDetected(false);
-             }
+        if (matcher && detections.length > 0) {
+              const d = detections[0];
+              const match = matcher.findBestMatch(d.descriptor);
+              const isSmiling = d.expressions.happy > 0.7;
+              
+              if (match.label !== 'unknown') {
+                 setIsFaceDetected(true);
+                 if (isSmiling) handleCheckIn(match, isSmiling);
+              } else {
+                 setIsFaceDetected(false);
+              }
         } else {
             setIsFaceDetected(false);
         }
@@ -228,109 +340,257 @@ export default function AttendancePage() {
 
   return (
     <div className="p-4 md:p-6 w-full max-w-6xl mx-auto">
-      {/* HEADER CONTROLS */}
-      <div className="mb-4 flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <div>
-            <h1 className="font-bold text-gray-800 flex items-center gap-2">
-              <Camera className="text-[#1193b5]" /> Scan Presensi
-            </h1>
-        </div>
-        
-        <div className="flex gap-2">
-            <button 
-                onClick={() => setIsCameraActive(!isCameraActive)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
-                    isCameraActive 
-                    ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' 
-                    : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
-                }`}
-            >
-                <Power size={18} />
-                {isCameraActive ? "Stop Cam" : "Start Cam"}
-            </button>
-
-            <button 
-                onClick={() => setIsMirrored(!isMirrored)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                    isMirrored 
-                        ? 'bg-[#1193b5] text-white border-[#1193b5] shadow-sm' 
-                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
-                title="Toggle Mirror"
-            >
-                <FlipHorizontal size={18} />
-                <span className="hidden md:inline">{isMirrored ? "Mirrored" : "Normal"}</span>
-            </button>
-        </div>
-      </div>
-
-      {/* CAMERA VIEWPORT */}
-      <div className={`relative w-full bg-black rounded-2xl overflow-hidden shadow-lg transition-all md:aspect-[16/9] aspect-[3/4] 
-        ${isFaceDetected && isCameraActive ? 'ring-4 ring-green-500' : ''}
-      `}>
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
-          {!isCameraActive ? (
-            <div className="text-center text-gray-500 animate-in fade-in duration-300">
-                <Power size={48} className="mx-auto mb-2 opacity-50" />
-                <p>Camera is Off</p>
-                <button onClick={() => setIsCameraActive(true)} className="mt-4 text-[#1193b5] hover:text-blue-400 font-bold underline">Turn On</button>
+      
+      {/* HEADER: Show only during active scanning modes */}
+        {(mode === 'REGISTER' || mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
+        <div className="mb-4 flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            
+            {/* 1. Dynamic Title */}
+            <div>
+                <h1 className="font-bold text-gray-800 flex items-center gap-2">
+                    <Camera className="text-[#1193b5]" /> 
+                    {mode === 'CHECK_OUT' ? 'Konfirmasi Pulang' : 
+                    mode === 'REGISTER' ? 'Registrasi Wajah' : 
+                    'Scan Presensi'}
+                </h1>
             </div>
-          ) : capturedImage ? (
-            <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
-          ) : (
-            <video 
-                ref={videoRef} 
-                autoPlay muted playsInline 
-                onPlay={handleVideoPlay}
-                className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1]' : ''}`}
-            />
-          )}
 
-          {/* STATUS PILL */}
-          {(status && isCameraActive) || status.includes("Captured") ? (
-             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-auto">
-                <div className={`px-6 py-3 rounded-full backdrop-blur-md font-medium flex items-center gap-2 shadow-lg transition-all
-                    ${status.includes('✅') ? 'bg-green-500/90 text-white' : 
-                      status.includes('❌') ? 'bg-red-500/90 text-white' : 
-                      'bg-black/60 text-white'
-                    }
-                `}>
-                    {(status.includes("Verifying") || isSnapshotting) && <Loader2 className="animate-spin" size={18} />}
-                    {status.includes('✅') && <CheckCircle2 size={18}/>}
-                    {status.includes('❌') && <AlertCircle size={18}/>}
-                    {status}
-                </div>
-             </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* FOOTER ACTIONS */}
-      <div className="mt-6 flex flex-col items-center gap-4">
-         {mode === 'REGISTER' && !capturedImage && isCameraActive && (
-             <button 
-                onClick={takeSnapshot} 
-                disabled={isSnapshotting}
-                className={`px-12 py-4 rounded-full font-bold text-lg shadow-xl transition flex items-center gap-2
-                    ${isSnapshotting 
-                        ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                        : 'bg-[#1193b5] text-white hover:scale-105 hover:bg-blue-600'
+            {/* 2. Camera Controls */}
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => setIsCameraActive(!isCameraActive)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                        isCameraActive 
+                        ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' 
+                        : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
                     }`}
-             >
-                {isSnapshotting ? (
-                    <>Processing...</>
+                >
+                    <Power size={18} /> {isCameraActive ? "Stop" : "Start"}
+                </button>
+                <button 
+                    onClick={() => setIsMirrored(!isMirrored)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
+                  isMirrored 
+                  ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 shadow-sm' // LIT UP (Active)
+                  : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'              // Default (Inactive)
+                }`}
+                >
+                    <FlipHorizontal size={18} />
+                </button>
+            </div>
+        </div>
+        )}
+
+
+      {/* NEW: LOADING VIEW */}
+        {mode === 'LOADING' && (
+            <div className="flex flex-col items-center justify-center min-h-[400px] animate-pulse">
+                <Loader2 size={48} className="text-[#1193b5] animate-spin mb-4" />
+                <p className="text-gray-400 font-medium">Loading ...</p>
+            </div>
+        )}
+    
+      {/* --- VIEW 1: CAMERA SCANNER (Register / Check In) --- */}
+      {(mode === 'REGISTER' || mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
+          <>
+            <div className={`relative w-full bg-black rounded-2xl overflow-hidden shadow-lg transition-all md:aspect-[16/9] aspect-[3/4] 
+                ${isFaceDetected && isCameraActive ? 'ring-4 ring-green-500' : ''}
+            `}>
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                {!isCameraActive ? (
+                    <div className="text-center text-gray-500">
+                        <Power size={48} className="mx-auto mb-2 opacity-50" />
+                        <p>Camera is Off</p>
+                        <button onClick={() => setIsCameraActive(true)} className="mt-4 text-[#1193b5] hover:text-blue-400 font-bold underline">Turn On</button>
+                    </div>
+                ) : capturedImage ? (
+                    <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
                 ) : (
-                    <><Camera size={24} /> Ambil Foto</>
+                    <video 
+                        ref={videoRef} 
+                        autoPlay muted playsInline 
+                        onPlay={handleVideoPlay}
+                        className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1]' : ''}`}
+                    />
                 )}
-             </button>
-         )}
-         {mode === 'REGISTER' && capturedImage && (
-             <div className="flex gap-4">
-                <button onClick={resetSnapshot} className="px-6 py-3 bg-gray-200 rounded-full font-bold hover:bg-gray-300 transition">Ulangi</button>
-                <button onClick={saveRegistration} className="px-6 py-3 bg-green-600 text-white rounded-full font-bold hover:bg-green-700 transition">Simpan</button>
-             </div>
-         )}
-         <button onClick={handleReset} className="text-xs text-red-300 hover:text-red-500 underline">[DEV] Reset</button>
-      </div>
+
+                {/* Status Pill */}
+                {(statusMsg && isCameraActive) || statusMsg.includes("Captured") ? (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-auto">
+                        <div className={`px-6 py-3 rounded-full backdrop-blur-md font-medium flex items-center gap-2 shadow-lg transition-all bg-black/60 text-white`}>
+                            {statusMsg.includes("Verifying") && <Loader2 className="animate-spin" size={18} />}
+                            {statusMsg}
+                        </div>
+                    </div>
+                ) : null}
+                </div>
+            </div>
+
+            {/* Register Buttons */}
+            <div className="mt-6 flex flex-col items-center gap-4">
+                {mode === 'REGISTER' && !capturedImage && isCameraActive && (
+                    <button onClick={takeSnapshot} disabled={isSnapshotting} className="px-12 py-4 rounded-full font-bold text-lg bg-[#1193b5] text-white hover:scale-105 shadow-xl transition flex items-center gap-2">
+                        {isSnapshotting ? "Processing..." : <><Camera size={24} /> Ambil Foto</>}
+                    </button>
+                )}
+                {mode === 'REGISTER' && capturedImage && (
+                    <div className="flex gap-4">
+                        <button onClick={resetSnapshot} className="px-6 py-3 bg-gray-200 rounded-full font-bold">Ulangi</button>
+                        <button onClick={saveRegistration} className="px-6 py-3 bg-green-600 text-white rounded-full font-bold">Simpan</button>
+                    </div>
+                )}
+                <button onClick={handleReset} className="text-xs text-red-300 underline">[DEV] Reset</button>
+            </div>
+          </>
+      )}
+
+      {/* --- VIEW 2: DASHBOARD (Already Checked In) --- */}
+      {mode === 'DASHBOARD' && (
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* Status Card */}
+              <div className={`p-8 rounded-2xl border-2 text-center shadow-sm ${
+                  attendanceStatus === 'ON_BREAK' 
+                  ? 'bg-yellow-50 border-yellow-200 text-yellow-800' 
+                  : attendanceStatus === 'CHECKED_OUT'
+                  ? 'bg-blue-50 border-blue-200 text-blue-800' // Tambahan style untuk CHECKED_OUT
+                  : 'bg-green-50 border-green-200 text-green-800'
+              }`}>
+                  <div className="inline-block p-4 rounded-full bg-white mb-4 shadow-sm">
+                      {attendanceStatus === 'ON_BREAK' ? <Coffee size={48} className="text-yellow-500" /> : 
+                       attendanceStatus === 'CHECKED_OUT' ? <CheckCircle2 size={48} className="text-blue-500" /> :
+                       <CheckCircle2 size={48} className="text-green-500" />}
+                  </div>
+                  <h2 className="text-2xl font-bold mb-1">
+                      {attendanceStatus === 'ON_BREAK' ? 'Sedang Istirahat' : 
+                       attendanceStatus === 'CHECKED_OUT' ? 'Selesai Bekerja' :
+                       'Sudah Absen Masuk'}
+                  </h2>
+                  <p className="opacity-80">
+                      {attendanceStatus === 'ON_BREAK' 
+                        ? 'Jangan lupa klik tombol di bawah saat kembali.' 
+                        : attendanceStatus === 'CHECKED_OUT'
+                        ? 'Terima kasih atas kerja kerasmu hari ini!'
+                        : 'Selamat bekerja! Gunakan tombol di bawah jika perlu keluar.'}
+                  </p>
+              </div>
+
+              {/* --- ACTION BUTTONS AREA (UPDATED) --- */}
+              
+              {/* KONDISI 1: Tampilkan Tombol JIKA BELUM PULANG */}
+              {attendanceStatus !== 'CHECKED_OUT' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {['PRESENT', 'LATE', 'LATE_EXCUSED'].includes(attendanceStatus) ? (
+                        <>
+                            <button 
+                                onClick={() => setShowBreakModal(true)}
+                                className="bg-yellow-500 hover:bg-yellow-600 text-white p-6 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-1"
+                            >
+                                <Coffee size={32} />
+                                <span className="font-bold text-lg">Izin Keluar / Istirahat</span>
+                                <span className="text-xs opacity-90">Kuliah / Makan / Keperluan Lain</span>
+                            </button>
+
+                            <button 
+                                onClick={() => {
+                                    if(confirm("Siap untuk pulang? Scan wajah untuk konfirmasi.")) {
+                                        setMode('CHECK_OUT');      // 1. Ubah mode
+                                        setIsCameraActive(true);   // 2. Nyalakan kamera
+                                        setStatusMsg("Senyum untuk Absen Pulang!");
+                                    }
+                                }}
+                                className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition transform hover:-translate-y-1"
+                            >
+                                <LogOut size={32} />
+                                <span className="font-bold text-lg">Absen Pulang</span>
+                                <span className="text-xs opacity-90">Scan Wajah & Selesai</span>
+                            </button>
+                        </>
+                    ) : (
+                        // Tombol Kembali Bekerja (Muncul hanya saat ON_BREAK)
+                        <button 
+                            onClick={() => handleStatusChange("END")}
+                            disabled={isBreakLoading}
+                            className="md:col-span-2 bg-green-600 hover:bg-green-700 text-white p-6 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition"
+                        >
+                            {isBreakLoading ? <Loader2 className="animate-spin" /> : <Play size={32} fill="currentColor"/>}
+                            <span className="font-bold text-lg">Kembali Bekerja</span>
+                            <span className="text-xs opacity-90">Lanjut aktivitas kantor</span>
+                        </button>
+                    )}
+                </div>
+              )}
+
+              {/* KONDISI 2: Tampilkan Pesan Selesai JIKA SUDAH PULANG */}
+              {attendanceStatus === 'CHECKED_OUT' && (
+                <div className="p-6 bg-blue-50 border border-blue-200 rounded-2xl text-center mt-4 animate-in zoom-in-95">
+                    <h3 className="font-bold text-blue-800 text-lg">Sampai Jumpa Besok! 👋</h3>
+                    <p className="text-blue-600 text-sm mt-1">Hati-hati di jalan.</p>
+                </div>
+              )}
+
+              {/* -------------------------------------- */}
+
+              {/* RESTORED: Dev Reset Button (Always Visible) */}
+              <div className="text-center mt-4 border-t border-gray-100 pt-4">
+                 <button onClick={handleReset} className="text-xs text-red-300 hover:text-red-500 underline">[DEV] Reset Face ID</button>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: Break Reason */}
+        {showBreakModal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">Form Izin Keluar</h3>
+                
+                {/* Reason Input */}
+                <div className="mb-4">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Alasan</label>
+                    <textarea
+                        autoFocus
+                        rows={3}
+                        className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-yellow-400 outline-none resize-none text-sm"
+                        placeholder="Misal: Kuliah, Makan, dll..."
+                        value={breakReason}
+                        onChange={(e) => setBreakReason(e.target.value)}
+                    />
+                </div>
+
+                {/* File Input */}
+                <div className="mb-6">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bukti (Opsional)</label>
+                    <input 
+                        type="file" 
+                        accept="image/*,.pdf"
+                        onChange={(e) => setBreakFile(e.target.files ? e.target.files[0] : null)}
+                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Upload jadwal kuliah atau foto kegiatan jika ada.</p>
+                </div>
+
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => {
+                            setShowBreakModal(false);
+                            setBreakFile(null);
+                        }}
+                        className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition"
+                    >
+                        Batal
+                    </button>
+                    <button 
+                        onClick={() => handleStatusChange("START")}
+                        disabled={!breakReason || isBreakLoading}
+                        className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl hover:bg-yellow-600 disabled:opacity-50 transition"
+                    >
+                        {isBreakLoading ? "Upload..." : "Mulai Izin"}
+                    </button>
+                </div>
+            </div>
+            </div>
+        )}
+
     </div>
   );
 }

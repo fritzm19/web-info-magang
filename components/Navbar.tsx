@@ -1,10 +1,15 @@
 "use client";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image"; // Import Image untuk logo
+import Image from "next/image"; 
 import LogoutButton from "./LogoutButton"; 
 
-export default function Navbar() {
+// 1. Add Interface for Props
+interface NavbarProps {
+  hideRegisterBtn?: boolean; // Optional prop to hide "Daftar" button
+}
+
+export default function Navbar({ hideRegisterBtn = false }: NavbarProps) {
   const { data: session, status } = useSession();
 
   return (
@@ -14,11 +19,9 @@ export default function Navbar() {
           
           {/* --- BAGIAN KIRI: LOGO & BRANDING (Sesuai Desain Lama) --- */}
           <Link href="/" className="flex items-center gap-3 group">
-             {/* Placeholder Logo: Pastikan file 'logo.png' ada di folder public */}
              <div className="relative h-10 w-10 md:h-12 md:w-12 shrink-0">
-                {/* Gunakan Image component Next.js untuk performa */}
                 <Image 
-                    src="/sulut-icon.png" // GANTI dengan nama file logo dinas Anda
+                    src="/sulut-icon.png" 
                     alt="Logo Pemprov Sulut" 
                     fill
                     className="object-contain"
@@ -53,35 +56,36 @@ export default function Navbar() {
                 <div className="w-24 h-8 bg-gray-100 animate-pulse rounded-full"></div>
             )}
 
-            {/* 2. STATE GUEST (Belum Login) - Desain: Text Link & Pill Button */}
+            {/* 2. STATE GUEST (Belum Login) */}
             {status === "unauthenticated" && (
-              <>
+              <div className="flex items-center gap-3">
                 <Link 
                     href="/login" 
                     className="text-sm font-semibold text-gray-600 hover:text-[#1193b5] transition"
                 >
                   Masuk
                 </Link>
-                <Link 
-                    href="/register" 
-                    className="bg-[#1193b5] hover:bg-[#0e7a96] text-white text-sm font-bold px-6 py-2.5 rounded-full shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
-                >
-                  Daftar
-                </Link>
-              </>
+                
+                {/* LOGIC: Hanya tampilkan tombol Daftar jika hideRegisterBtn === false */}
+                {!hideRegisterBtn && (
+                    <Link 
+                        href="/register" 
+                        className="bg-[#1193b5] hover:bg-[#0e7a96] text-white text-sm font-bold px-6 py-2.5 rounded-full shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+                    >
+                      Daftar
+                    </Link>
+                )}
+              </div>
             )}
 
             {/* 3. STATE SUDAH LOGIN (User & Admin) */}
             {status === "authenticated" && (
               <div className="flex items-center gap-4">
                 {/* Info User Kecil */}
-                <div className="text-right mr-1"> {/* Tambah margin kanan dikit */}
-                    {/* Role: Sembunyikan di HP (hidden), Muncul di PC (sm:block) */}
+                <div className="text-right mr-1"> 
                     <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider hidden sm:block">
                         {session.user?.role === "ADMIN" ? "Administrator" : "Peserta"}
                     </p>
-                    
-                    {/* Nama: Muncul di semua layar. Di HP teksnya lebih kecil (text-xs) */}
                     <p className="text-xs sm:text-sm font-bold text-gray-800 leading-none">
                         <span className="sm:hidden font-normal text-gray-500 mr-1">Hi,</span> 
                         {session.user?.name?.split(" ")[0]}

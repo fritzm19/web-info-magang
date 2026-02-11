@@ -3,7 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, FileText, Users, LogOut, Shield, ClipboardCheck } from "lucide-react"; // Added ClipboardCheck
+import { 
+    Menu,
+    X,
+    LayoutDashboard,
+    FileText,
+    Users,
+    LogOut,
+    Shield,
+    ClipboardCheck,
+    CalendarDays,
+    FolderCode
+} from "lucide-react"; // Added ClipboardCheck
 import { signOut } from "next-auth/react";
 import { Session } from "next-auth";
 
@@ -16,6 +27,8 @@ export default function AdminMobileNav({ session }: { session: Session | null })
     { href: "/admin/applications", label: "Permohonan", icon: FileText },
     { href: "/admin/permissions", label: "Izin & Absensi", icon: ClipboardCheck }, // New Link
     { href: "/admin/users", label: "Pengguna", icon: Users },
+    { href: "/admin/attendance", label: "Rekap Absensi", icon: CalendarDays },
+    { href: "/admin/projects", label: "Project Monitor", icon: FolderCode }, // Use FolderCode icon
   ];
 
   return (

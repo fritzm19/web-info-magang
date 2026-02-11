@@ -45,21 +45,24 @@ enum ProjectVisibility {
 // --- MODELS ---
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("USER") // Keep as String to match your existing data, or switch to Role enum if you prefer
-  faceDescriptor String? @db.Text // Store facial features as embeddings in JSON format
-  phone     String?
-  agency    String?
-  createdAt DateTime @default(now())
-
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  password      String
+  name          String?
+  role          String   @default("USER")
+  faceDescriptor String? @db.Text
+  phone         String?
+  agency        String?
+  
+  avatarUrl     String?  // <--- NEW: Stores Profile Picture Path
+  
+  createdAt     DateTime @default(now())
+  
   // Relations
-  application     Application?
-  attendances     Attendance[]
-  permissions     Permission[]
-  projectMembers  ProjectMember[]
+  application   Application?
+  attendances   Attendance[]
+  permissions   Permission[]
+  projectMembers ProjectMember[]
 }
 
 model Application {
@@ -76,8 +79,8 @@ model Application {
   startDate DateTime?
   endDate   DateTime?
   
-  cvUrl       String?
-  proposalUrl String?
+  cvUrl     String?
+  letterUrl String?  // <--- RENAMED (was proposalUrl)
   
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
@@ -115,6 +118,7 @@ model AttendanceBreak {
   startTime    DateTime
   endTime      DateTime?
   reason       String
+  proofUrl     String?
 }
 
 model Permission {
@@ -141,7 +145,8 @@ model Project {
   visibility  ProjectVisibility @default(PUBLIC)
   
   repoLink    String?
-  demoUrl     String?  // Deployment Link
+  deploymentUrl     String?  // Deployment Link
+  thumbnailUrl  String?
   
   createdAt   DateTime @default(now())
   members     ProjectMember[]

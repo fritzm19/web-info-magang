@@ -19,7 +19,7 @@ type Application = {
   startDate: Date | null;
   endDate: Date | null;
   cvUrl: string | null;
-  proposalUrl: string | null;
+  letterUrl: string | null;
   status: string;
   user: { email: string; name: string | null };
 };
@@ -28,17 +28,18 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<number | null>(null);
 
+  // 1. Update the fetch URL to our admin API
+  // 2. Update the body to match what the API expects ({ id, status })
   const updateStatus = async (id: number, status: string) => {
     setIsLoading(id);
     try {
-      await fetch("/api/application/status", {
+      await fetch("/api/admin/applications", { // 👈 CHANGED from /api/application/status
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: id, newStatus: status }),
+        body: JSON.stringify({ id, status }), // 👈 CHANGED keys to simple 'id' and 'status'
       });
       router.refresh();
     } catch (error) {
-      // PERBAIKAN: Gunakan variabel error (log ke console)
       console.error("Update Status Error:", error); 
       alert("Gagal mengupdate status");
     } finally { 
@@ -127,10 +128,10 @@ export default function ApplicationTable({ initialData }: { initialData: Applica
 
                 {/* 5. SURAT PENGANTAR */}
                 <td className="px-6 py-4 text-center align-middle">
-                    {app.proposalUrl ? (
+                    {app.letterUrl ? (
                         <div className="flex justify-center">
                             <ViewPdfButton 
-                                url={app.proposalUrl} 
+                                url={app.letterUrl} 
                                 label="Buka Surat" 
                                 fileName={`Surat Pengantar - ${app.fullName}.pdf`}
                             />

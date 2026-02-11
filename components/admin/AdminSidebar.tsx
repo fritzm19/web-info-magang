@@ -9,7 +9,9 @@ import {
   Users, 
   LogOut,
   Shield,
-  ClipboardCheck // 👈 Import this
+  ClipboardCheck, // 👈 Import this
+  CalendarDays,
+  FolderCode,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -23,9 +25,10 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
   const menuItems = [
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/applications", label: "Permohonan", icon: FileText },
-    // 👇 ADD THIS LINE
     { href: "/admin/permissions", label: "Izin & Absensi", icon: ClipboardCheck },
     { href: "/admin/users", label: "Pengguna", icon: Users },
+    { href: "/admin/attendance", label: "Rekap Absensi", icon: CalendarDays },
+    { href: "/admin/projects", label: "Project Monitor", icon: FolderCode }, // Use FolderCode icon
   ];
 
   return (

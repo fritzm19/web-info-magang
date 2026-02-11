@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X, LayoutDashboard, Camera, LogOut, FileText } from "lucide-react";
+import { X, LayoutDashboard, Camera, LogOut, FileText, FolderCode } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 interface MobileSidebarProps {
@@ -58,7 +58,14 @@ export default function MobileSidebar({ isOpen, onClose, user }: MobileSidebarPr
                 className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/20 transition font-medium"
                 >
                 <FileText size={20} /> Izin / Sakit
-                </Link>
+            </Link>
+            <Link 
+                href="/dashboard/projects" 
+                onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/20 transition font-medium"
+                >
+                <FolderCode size={20} /> Project
+            </Link>
           </nav>
 
           {/* Footer (Logout) */}
