@@ -31,7 +31,7 @@ export default async function ProfilePage() {
             <div className="relative -mt-16 mb-6 flex justify-between items-end">
                 <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-50 overflow-hidden shadow-md flex items-center justify-center">
                      {user.avatarUrl ? (
-                        <img 
+                        <Image  
                             src={user.avatarUrl} 
                             alt={user.name || "User"} 
                             className="object-cover w-full h-full"
