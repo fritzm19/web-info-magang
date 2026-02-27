@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
-import { Camera, AlertCircle, CheckCircle2, Power, FlipHorizontal, Loader2, Coffee, LogOut, Play } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle2, Power, FlipHorizontal, Loader2, Coffee, LogOut, Play, Info } from 'lucide-react';
 
 type AttendanceStatus = 'ABSENT' | 'PRESENT' | 'ON_BREAK' | 'CHECKED_OUT';
 
@@ -12,6 +12,10 @@ export default function AttendancePage() {
   
   const isProcessingRef = useRef(false);
   const isSubmittingRef = useRef(false);
+
+  // --- NEW: Bulletproof Refs for AI & Memory Leaks ---
+  const matcherRef = useRef<faceapi.FaceMatcher | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // UX Settings
   const [isMirrored, setIsMirrored] = useState(true);
@@ -28,10 +32,9 @@ export default function AttendancePage() {
   const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>('ABSENT');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [tempDescriptor, setTempDescriptor] = useState<Float32Array | null>(null);
-  const [matcher, setMatcher] = useState<faceapi.FaceMatcher | null>(null);
   const lastCheckInRef = useRef(0);
 
-  // Break Modal State
+  // Break Modal State (Kept exactly as you requested!)
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [breakReason, setBreakReason] = useState("");
   const [breakFile, setBreakFile] = useState<File | null>(null);
@@ -53,7 +56,7 @@ export default function AttendancePage() {
         ]);
         setModelsLoaded(true);
 
-        // Check User Face & Today's Status
+        // Fetch Data
         const [faceRes, statusRes] = await Promise.all([
             fetch('/api/user/face-descriptor'),
             fetch('/api/attendance/today')
@@ -62,32 +65,41 @@ export default function AttendancePage() {
         const faceData = await faceRes.json();
         const statusData = await statusRes.json();
 
-        // --- LOGIC UPDATE STARTS HERE ---
-        
-        // CASE A: User is already checked in / on break / checked out
+        // --- ROBUST DESCRIPTOR PARSING ---
+        if (faceData.hasFace && faceData.descriptor) {
+            try {
+                // Safely handle strings from Prisma @db.Text OR direct arrays
+                const parsedData = typeof faceData.descriptor === 'string' 
+                    ? JSON.parse(faceData.descriptor) 
+                    : faceData.descriptor;
+                
+                const descriptor = new Float32Array(parsedData);
+                const labeled = new faceapi.LabeledFaceDescriptors(faceData.name || 'You', [descriptor]);
+                
+                // Set threshold to 0.65 (slightly more forgiving for webcams/lighting)
+                matcherRef.current = new faceapi.FaceMatcher(labeled, 0.65); 
+            } catch (e) {
+                console.error("Gagal membaca Face ID dari database", e);
+            }
+        }
+
+        // --- LOGIC ROUTING ---
         if (statusData.status && statusData.status !== 'ABSENT') {
             setAttendanceStatus(statusData.status);
             setMode('DASHBOARD'); 
             setStatusMsg("Welcome back!");
-            setIsCameraActive(false); // <--- ENSURE CAM IS OFF
-        } 
-        // CASE B: User needs to Scan (Check In or Register)
-        else {
+            setIsCameraActive(false); 
+        } else {
             if (faceData.hasFace) {
-                const descriptor = new Float32Array(faceData.descriptor);
-                const labeled = new faceapi.LabeledFaceDescriptors(faceData.name || 'You', [descriptor]);
-                setMatcher(new faceapi.FaceMatcher(labeled, 0.6));
-                
                 setMode('CHECK_IN');
                 setStatusMsg("Ready. Smile to Check In!");
-                setIsCameraActive(true); // <--- TURN CAM ON ONLY NOW
+                setIsCameraActive(true); 
             } else {
                 setMode('REGISTER');
                 setStatusMsg("Registration Mode.");
-                setIsCameraActive(true); // <--- TURN CAM ON ONLY NOW
+                setIsCameraActive(true); 
             }
         }
-        // -------------------------------
 
       } catch (err) {
         console.error("Init Error:", err);
@@ -95,16 +107,20 @@ export default function AttendancePage() {
       }
     };
     init();
+    
+    // Cleanup interval on unmount
+    return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   // 2. Camera Manager
-  // Update the condition to be strict about MODE
   useEffect(() => {
     const shouldRunCamera = 
         isCameraActive && 
         !capturedImage && 
         modelsLoaded && 
-        (mode === 'CHECK_IN' || mode === 'REGISTER' || mode === 'CHECK_OUT'); // <--- STRICT CHECK
+        (mode === 'CHECK_IN' || mode === 'REGISTER' || mode === 'CHECK_OUT');
 
     if (shouldRunCamera) {
       startVideo();
@@ -134,6 +150,7 @@ export default function AttendancePage() {
   };
 
   const stopVideo = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -196,14 +213,12 @@ export default function AttendancePage() {
   };
    
   const handleCheckIn = async (match: faceapi.FaceMatch, isSmiling: boolean) => {
-    // Prevent spam check
     if (Date.now() - lastCheckInRef.current < 5000 || isSubmittingRef.current) return;
     if (match.label === 'unknown' || !isSmiling) return; 
 
     isSubmittingRef.current = true;
     setStatusMsg(mode === 'CHECK_OUT' ? "Memproses Absen Pulang..." : "Verifikasi Lokasi...");
     
-    // Tentukan URL API berdasarkan mode
     const apiEndpoint = mode === 'CHECK_OUT' ? '/api/attendance/checkout' : '/api/attendance/check-in';
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -216,8 +231,6 @@ export default function AttendancePage() {
         const json = await res.json();
         
         if (json.success) {
-           // 1. TAMPILKAN NOTIFIKASI (ALERT)
-           // Ini akan menahan tampilan sebentar sampai user klik "OK"
            if (mode === 'CHECK_OUT') {
                alert("Berhasil absen pulang. Hati-hati di jalan! 👋");
                setAttendanceStatus('CHECKED_OUT');
@@ -226,7 +239,6 @@ export default function AttendancePage() {
                setAttendanceStatus('PRESENT');
            }
 
-           // 2. SETELAH KLIK OK, BARU PINDAH TAMPILAN
            setStatusMsg(mode === 'CHECK_OUT' ? "👋 Sampai Jumpa!" : "✅ Berhasil Masuk!");
            setMode('DASHBOARD'); 
            setIsCameraActive(false); 
@@ -243,21 +255,17 @@ export default function AttendancePage() {
   const handleStatusChange = async (action: "START" | "END" | "CHECK_OUT") => {
     setIsBreakLoading(true);
     try {
-        // --- NEW: Handle Check Out ---
         if (action === "CHECK_OUT") {
             if(!confirm("Apakah Anda yakin ingin absen pulang?")) {
                 setIsBreakLoading(false);
                 return;
             }
 
-            const res = await fetch("/api/attendance/checkout", {
-                method: "POST",
-            });
-
+            const res = await fetch("/api/attendance/checkout", { method: "POST" });
             const data = await res.json();
 
             if (res.ok) {
-                setAttendanceStatus("CHECKED_OUT"); // Update UI locally
+                setAttendanceStatus("CHECKED_OUT"); 
                 alert("Berhasil absen pulang. Hati-hati di jalan!");
             } else {
                 alert(data.error || "Gagal absen pulang.");
@@ -271,16 +279,10 @@ export default function AttendancePage() {
         
         if (action === "START") {
             formData.append("reason", breakReason);
-            if (breakFile) {
-                formData.append("file", breakFile);
-            }
+            if (breakFile) formData.append("file", breakFile);
         }
 
-        const res = await fetch("/api/attendance/break", {
-            method: "POST",
-            body: formData, 
-        });
-
+        const res = await fetch("/api/attendance/break", { method: "POST", body: formData });
         const data = await res.json();
 
         if (res.ok) {
@@ -291,34 +293,38 @@ export default function AttendancePage() {
         } else {
             alert(data.error || "Gagal memproses.");
         }
-
     } catch (e) {
-        console.error(e);
         alert("Terjadi kesalahan sistem.");
     } finally {
         setIsBreakLoading(false);
     }
   };
 
-  // 5. AI Loop
+  // 5. AI Loop (BULLETPROOF VERSION)
   const handleVideoPlay = () => {
     const video = videoRef.current;
     if (!video || !modelsLoaded) return;
 
-    const interval = setInterval(async () => {
+    // Clear any existing ghosts loop!
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(async () => {
       if (video.paused || video.ended || isProcessingRef.current || (mode !== 'CHECK_IN' && mode !== 'CHECK_OUT')) return;
       isProcessingRef.current = true;
 
       try {
         const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors().withFaceExpressions();
         
-        if (matcher && detections.length > 0) {
+        // Grab the FRESHEST matcher data from the reference
+        const currentMatcher = matcherRef.current; 
+
+        if (currentMatcher && detections.length > 0) {
               const d = detections[0];
-              const match = matcher.findBestMatch(d.descriptor);
+              const match = currentMatcher.findBestMatch(d.descriptor);
               const isSmiling = d.expressions.happy > 0.7;
               
               if (match.label !== 'unknown') {
-                 setIsFaceDetected(true);
+                 setIsFaceDetected(true); // Turns the border green
                  if (isSmiling) handleCheckIn(match, isSmiling);
               } else {
                  setIsFaceDetected(false);
@@ -329,7 +335,6 @@ export default function AttendancePage() {
       } catch (err) { console.log(err); } 
       finally { isProcessingRef.current = false; }
     }, 500);
-    return () => clearInterval(interval);
   };
 
   const handleReset = async () => {
@@ -342,10 +347,8 @@ export default function AttendancePage() {
     <div className="p-4 md:p-6 w-full max-w-6xl mx-auto">
       
       {/* HEADER: Show only during active scanning modes */}
-        {(mode === 'REGISTER' || mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
+      {(mode === 'REGISTER' || mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
         <div className="mb-4 flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            
-            {/* 1. Dynamic Title */}
             <div>
                 <h1 className="font-bold text-gray-800 flex items-center gap-2">
                     <Camera className="text-[#1193b5]" /> 
@@ -355,7 +358,6 @@ export default function AttendancePage() {
                 </h1>
             </div>
 
-            {/* 2. Camera Controls */}
             <div className="flex gap-2">
                 <button 
                     onClick={() => setIsCameraActive(!isCameraActive)}
@@ -371,28 +373,38 @@ export default function AttendancePage() {
                     onClick={() => setIsMirrored(!isMirrored)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${
                   isMirrored 
-                  ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 shadow-sm' // LIT UP (Active)
-                  : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'              // Default (Inactive)
+                  ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 shadow-sm'
+                  : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
                 }`}
                 >
                     <FlipHorizontal size={18} />
                 </button>
             </div>
         </div>
-        )}
+      )}
 
-
-      {/* NEW: LOADING VIEW */}
-        {mode === 'LOADING' && (
-            <div className="flex flex-col items-center justify-center min-h-[400px] animate-pulse">
-                <Loader2 size={48} className="text-[#1193b5] animate-spin mb-4" />
-                <p className="text-gray-400 font-medium">Loading ...</p>
-            </div>
-        )}
+      {/* LOADING VIEW */}
+      {mode === 'LOADING' && (
+          <div className="flex flex-col items-center justify-center min-h-[400px] animate-pulse">
+              <Loader2 size={48} className="text-[#1193b5] animate-spin mb-4" />
+              <p className="text-gray-400 font-medium">Loading ...</p>
+          </div>
+      )}
     
-      {/* --- VIEW 1: CAMERA SCANNER (Register / Check In) --- */}
+      {/* --- VIEW 1: CAMERA SCANNER (Register / Check In / Check Out) --- */}
       {(mode === 'REGISTER' || mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
           <>
+            {/* --- INFO BANNER --- */}
+            {(mode === 'CHECK_IN' || mode === 'CHECK_OUT') && (
+                <div className="mb-4 flex items-start gap-2 bg-blue-50 text-blue-700 p-3.5 rounded-xl text-sm border border-blue-100 shadow-sm">
+                    <Info className="shrink-0 mt-0.5" size={18} />
+                    <p>
+                        <strong>Tips:</strong> Pastikan pencahayaan cukup dan wajah terlihat jelas. Bingkai <span className="text-green-600 font-bold">hijau</span> pada kamera menandakan wajah Anda berhasil terdeteksi.
+                    </p>
+                </div>
+            )}
+
+            {/* CAMERA VIEW */}
             <div className={`relative w-full bg-black rounded-2xl overflow-hidden shadow-lg transition-all md:aspect-[16/9] aspect-[3/4] 
                 ${isFaceDetected && isCameraActive ? 'ring-4 ring-green-500' : ''}
             `}>
@@ -439,7 +451,7 @@ export default function AttendancePage() {
                         <button onClick={saveRegistration} className="px-6 py-3 bg-green-600 text-white rounded-full font-bold">Simpan</button>
                     </div>
                 )}
-                <button onClick={handleReset} className="text-xs text-red-300 underline">[DEV] Reset</button>
+                <button onClick={handleReset} className="text-xs text-red-300 hover:text-red-500 underline transition">[DEV] Reset Face ID</button>
             </div>
           </>
       )}
@@ -448,12 +460,11 @@ export default function AttendancePage() {
       {mode === 'DASHBOARD' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {/* Status Card */}
               <div className={`p-8 rounded-2xl border-2 text-center shadow-sm ${
                   attendanceStatus === 'ON_BREAK' 
                   ? 'bg-yellow-50 border-yellow-200 text-yellow-800' 
                   : attendanceStatus === 'CHECKED_OUT'
-                  ? 'bg-blue-50 border-blue-200 text-blue-800' // Tambahan style untuk CHECKED_OUT
+                  ? 'bg-blue-50 border-blue-200 text-blue-800'
                   : 'bg-green-50 border-green-200 text-green-800'
               }`}>
                   <div className="inline-block p-4 rounded-full bg-white mb-4 shadow-sm">
@@ -475,9 +486,6 @@ export default function AttendancePage() {
                   </p>
               </div>
 
-              {/* --- ACTION BUTTONS AREA (UPDATED) --- */}
-              
-              {/* KONDISI 1: Tampilkan Tombol JIKA BELUM PULANG */}
               {attendanceStatus !== 'CHECKED_OUT' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {['PRESENT', 'LATE', 'LATE_EXCUSED'].includes(attendanceStatus) ? (
@@ -494,8 +502,8 @@ export default function AttendancePage() {
                             <button 
                                 onClick={() => {
                                     if(confirm("Siap untuk pulang? Scan wajah untuk konfirmasi.")) {
-                                        setMode('CHECK_OUT');      // 1. Ubah mode
-                                        setIsCameraActive(true);   // 2. Nyalakan kamera
+                                        setMode('CHECK_OUT');      
+                                        setIsCameraActive(true);   
                                         setStatusMsg("Senyum untuk Absen Pulang!");
                                     }
                                 }}
@@ -507,7 +515,6 @@ export default function AttendancePage() {
                             </button>
                         </>
                     ) : (
-                        // Tombol Kembali Bekerja (Muncul hanya saat ON_BREAK)
                         <button 
                             onClick={() => handleStatusChange("END")}
                             disabled={isBreakLoading}
@@ -521,7 +528,6 @@ export default function AttendancePage() {
                 </div>
               )}
 
-              {/* KONDISI 2: Tampilkan Pesan Selesai JIKA SUDAH PULANG */}
               {attendanceStatus === 'CHECKED_OUT' && (
                 <div className="p-6 bg-blue-50 border border-blue-200 rounded-2xl text-center mt-4 animate-in zoom-in-95">
                     <h3 className="font-bold text-blue-800 text-lg">Sampai Jumpa Besok! 👋</h3>
@@ -529,11 +535,8 @@ export default function AttendancePage() {
                 </div>
               )}
 
-              {/* -------------------------------------- */}
-
-              {/* RESTORED: Dev Reset Button (Always Visible) */}
               <div className="text-center mt-4 border-t border-gray-100 pt-4">
-                 <button onClick={handleReset} className="text-xs text-red-300 hover:text-red-500 underline">[DEV] Reset Face ID</button>
+                 <button onClick={handleReset} className="text-xs text-red-300 hover:text-red-500 underline transition">[DEV] Reset Face ID</button>
               </div>
           </div>
       )}
@@ -544,7 +547,6 @@ export default function AttendancePage() {
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
                 <h3 className="font-bold text-lg mb-4 text-gray-800">Form Izin Keluar</h3>
                 
-                {/* Reason Input */}
                 <div className="mb-4">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Alasan</label>
                     <textarea
@@ -557,7 +559,6 @@ export default function AttendancePage() {
                     />
                 </div>
 
-                {/* File Input */}
                 <div className="mb-6">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bukti (Opsional)</label>
                     <input 

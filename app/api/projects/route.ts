@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+// Removed unused fs/promises and path imports to keep it clean
 import { saveUploadedFile } from "@/lib/upload";
 
 // GET: Fetch All Projects
@@ -11,7 +10,7 @@ export async function GET() {
   const projects = await prisma.project.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      members: { include: { user: { select: { name: true } } } }
+      members: { include: { user: { select: { id: true, name: true } } } } // Added 'id' here just to be safe for the frontend
     }
   });
   return NextResponse.json(projects);
@@ -72,17 +71,32 @@ export async function PATCH(req: Request) {
     const description = formData.get("description") as string;
     const repoLink = formData.get("repoLink") as string;
     const deploymentUrl = formData.get("deploymentUrl") as string;
+    const memberIds = JSON.parse(formData.get("memberIds") as string || "[]");
     const file = formData.get("thumbnail") as File | null;
-
-    // Check ownership (Optional but recommended)
-    // For now, we assume frontend handles visibility of Edit button
 
     const updateData: any = { title, description, repoLink, deploymentUrl };
     
-    // Only update thumbnail if a NEW file is uploaded
+    // BUG FIX: Changed 'saveFile' to 'saveUploadedFile'
     if (file) {
-      updateData.thumbnailUrl = await saveFile(file);
+      updateData.thumbnailUrl = await saveUploadedFile(file, "projects");
     }
+
+    // --- NEW: Update Members ---
+    // We recreate the array exactly like in POST
+    const membersToCreate = [{ userId: parseInt(session.user.id), role: "Leader" }];
+    if (Array.isArray(memberIds)) {
+      memberIds.forEach((userId: number) => {
+        if (userId !== parseInt(session.user.id)) {
+            membersToCreate.push({ userId: userId, role: "Member" });
+        }
+      });
+    }
+
+    // Tell Prisma to clear the old members and insert the new ones
+    updateData.members = {
+        deleteMany: {}, 
+        create: membersToCreate 
+    };
 
     const updated = await prisma.project.update({
       where: { id },

@@ -124,9 +124,9 @@ export default function AdminDashboard() {
              </div>
              <h3 className="font-bold text-gray-800">Project Repository</h3>
              <p className="text-gray-500 text-xs mt-1 mb-4">Pantau hasil karya peserta magang.</p>
-             <button className="text-[#1193b5] text-sm font-bold hover:underline" disabled>
-                Lihat Semua Project (Coming Soon)
-             </button>
+             <Link href="/admin/projects" className="text-[#1193b5] text-sm font-bold hover:underline">
+                Lihat Semua Project ({stats.totalProjects})
+             </Link>
         </div>
       </div>
     </div>

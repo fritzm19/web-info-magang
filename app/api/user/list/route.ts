@@ -10,7 +10,8 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: { 
       role: "USER",
-      id: { not: parseInt(session?.user?.id || "0") } // <--- Exclude Self
+      id: { not: parseInt(session?.user?.id || "0") },
+      application: { status: "ACCEPTED" }
     },
     select: { id: true, name: true },
     orderBy: { name: 'asc' }

@@ -95,7 +95,6 @@ export default function AdminAttendancePage() {
               <th className="p-4">Jam Masuk</th>
               <th className="p-4">Jam Pulang</th>
               <th className="p-4">Status</th>
-              <th className="p-4">Lokasi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -136,9 +135,6 @@ export default function AdminAttendancePage() {
                             }`}>
                                 {log.status === 'LATE' ? 'TERLAMBAT' : 'TEPAT WAKTU'}
                             </span>
-                        </td>
-                        <td className="p-4 text-gray-400">
-                            <MapPin size={16} />
                         </td>
                     </tr>
                 ))

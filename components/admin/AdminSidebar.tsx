@@ -12,6 +12,7 @@ import {
   ClipboardCheck, // 👈 Import this
   CalendarDays,
   FolderCode,
+  Timer
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -26,6 +27,7 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
     { href: "/admin", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/applications", label: "Permohonan", icon: FileText },
     { href: "/admin/permissions", label: "Izin & Absensi", icon: ClipboardCheck },
+    { href: "/admin/breaks", label: "Izin keluar", icon: Timer },
     { href: "/admin/users", label: "Pengguna", icon: Users },
     { href: "/admin/attendance", label: "Rekap Absensi", icon: CalendarDays },
     { href: "/admin/projects", label: "Project Monitor", icon: FolderCode }, // Use FolderCode icon
@@ -45,17 +47,8 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
         </div>
       </div>
 
-      {/* User Info */}
-      <div className="px-6 py-6">
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-            <p className="text-xs text-gray-400 mb-1">Login sebagai:</p>
-            <p className="text-sm font-bold truncate">{session?.user?.name || "Admin"}</p>
-            <p className="text-xs text-gray-500 truncate">{session?.user?.email}</p>
-        </div>
-      </div>
-
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="p-4 flex-1 px-4 space-y-2">
         {menuItems.map((item) => {
           // Highlight Logic:
           // 1. Exact match (e.g. /admin/users)
@@ -81,7 +74,7 @@ export default function AdminSidebar({ session }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Logout */}
       <div className="p-4 border-t border-gray-700">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

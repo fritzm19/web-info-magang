@@ -70,12 +70,6 @@ export default function AdminMobileNav({ session }: { session: Session | null })
             </button>
           </div>
 
-          {/* User Info */}
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-6 border border-gray-700">
-             <p className="text-xs text-gray-400">Login sebagai:</p>
-             <p className="font-bold text-sm truncate">{session?.user?.name || "Admin"}</p>
-          </div>
-
           {/* Links */}
           <nav className="flex-1 space-y-2">
             {menuItems.map((item) => {

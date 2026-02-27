@@ -119,6 +119,8 @@ model AttendanceBreak {
   endTime      DateTime?
   reason       String
   proofUrl     String?
+
+  status       String     @default("PENDING")
 }
 
 model Permission {

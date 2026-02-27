@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Github, Globe, User as UserIcon, Loader2, FolderGit2, X, Search, Check, Edit2, Maximize2, Image as ImageIcon } from "lucide-react";
-import Image from "next/image"; // Optimization
+import Image from "next/image";
 
 // Types
 type Project = {
@@ -11,8 +11,9 @@ type Project = {
   description: string;
   repoLink?: string;
   deploymentUrl?: string;
-  thumbnailUrl?: string; // New Field
-  members: { user: { name: string }, role: string }[];
+  thumbnailUrl?: string; 
+  // IMPORTANT: Added 'id' here so we can grab it for the edit form
+  members: { user: { id: number; name: string }, role: string }[];
 };
 
 type UserOption = { id: number; name: string };
@@ -23,8 +24,8 @@ export default function ProjectsPage() {
   
   // Modal States
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null); // For Details View
-  const [editingProject, setEditingProject] = useState<Project | null>(null);   // For Edit Mode
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Data
@@ -50,15 +51,19 @@ export default function ProjectsPage() {
   // 2. Handlers
   const handleOpenCreate = () => {
       setEditingProject(null);
-      setSelectedIds([]);
+      setSelectedIds([]); // Clear members on create
       setThumbnailFile(null);
       setIsFormOpen(true);
   };
 
   const handleOpenEdit = (project: Project, e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevent opening Details modal
+      e.stopPropagation(); 
       setEditingProject(project);
-      // We don't support editing members yet to keep it simple, just text/links/image
+      
+      // IMPORTANT: This pre-fills the form with the existing members!
+      setSelectedIds(project.members.map(m => m.user.id)); 
+      
+      setThumbnailFile(null);
       setIsFormOpen(true);
   };
 
@@ -122,13 +127,13 @@ export default function ProjectsPage() {
             {projects.map((p) => (
                 <div 
                     key={p.id} 
-                    onClick={() => setSelectedProject(p)} // Open Details
+                    onClick={() => setSelectedProject(p)} 
                     className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col h-full overflow-hidden group relative"
                 >
                     {/* Thumbnail Section */}
                     <div className="h-48 bg-gray-100 w-full relative overflow-hidden">
                         {p.thumbnailUrl ? (
-                            <img src={p.thumbnailUrl} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                            <Image src={p.thumbnailUrl} alt={p.title} width={400} height={200} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-300">
                                 <FolderGit2 size={48} />
@@ -176,7 +181,7 @@ export default function ProjectsPage() {
                     {/* Big Thumbnail */}
                     <div className="w-full h-64 md:h-80 bg-gray-100 relative">
                         {selectedProject.thumbnailUrl ? (
-                             <img src={selectedProject.thumbnailUrl} className="w-full h-full object-cover" />
+                             <Image src={selectedProject.thumbnailUrl} alt="Thumbnail" fill className="object-cover" />
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-300"><ImageIcon size={64}/></div>
                         )}
@@ -267,42 +272,40 @@ export default function ProjectsPage() {
                         <textarea name="description" defaultValue={editingProject?.description} required rows={5} className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none resize-none" />
                     </div>
                     
-                    {/* Team Select (Only show on Create for simplicity, unless you want to implement edit logic too) */}
-                    {!editingProject && (
-                        <div className="relative">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Anggota Tim</label>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                               {selectedIds.map(id => {
-                                   const user = allUsers.find(u => u.id === id);
-                                   return (
-                                       <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
-                                           {user?.name}
-                                           <button type="button" onClick={() => setSelectedIds(prev => prev.filter(i => i !== id))} className="hover:text-red-500"><X size={14} /></button>
-                                       </span>
-                                   )
-                               })}
-                            </div>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                                <input 
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => { setSearchQuery(e.target.value); setIsDropdownOpen(true); }}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm"
-                                    placeholder="Cari nama teman..."
-                                />
-                            </div>
-                            {isDropdownOpen && searchQuery && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-40 overflow-y-auto">
-                                    {filteredUsers.map((u) => (
-                                        <div key={u.id} onClick={() => { setSelectedIds([...selectedIds, u.id]); setSearchQuery(""); setIsDropdownOpen(false); }} className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm">
-                                            {u.name}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                    {/* IMPORTANT: The {!editingProject && ...} wrapper has been removed here! */}
+                    <div className="relative">
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Anggota Tim</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            {selectedIds.map(id => {
+                                const user = allUsers.find(u => u.id === id);
+                                return (
+                                    <span key={id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">
+                                        {user?.name || "Loading..."}
+                                        <button type="button" onClick={() => setSelectedIds(prev => prev.filter(i => i !== id))} className="hover:text-red-500"><X size={14} /></button>
+                                    </span>
+                                )
+                            })}
                         </div>
-                    )}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                            <input 
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setIsDropdownOpen(true); }}
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm"
+                                placeholder="Cari nama teman..."
+                            />
+                        </div>
+                        {isDropdownOpen && searchQuery && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-40 overflow-y-auto">
+                                {filteredUsers.map((u) => (
+                                    <div key={u.id} onClick={() => { setSelectedIds([...selectedIds, u.id]); setSearchQuery(""); setIsDropdownOpen(false); }} className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm">
+                                        {u.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
