@@ -48,7 +48,8 @@ The app uses a custom color palette defined in `app/globals.css`:
 3.  **Setup Database**
     Ensure MySQL is running (e.g., via Laragon/XAMPP), then sync the schema:
     ```bash
-    npx prisma db push
+    npx prisma migrate dev
+    npx prisma db seed
     ```
 
 4.  **Run the App**
